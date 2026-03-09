@@ -17,8 +17,6 @@ const { TMDBService } = require('./tmdb');
 const harmonizedFilter = require('../utils/BloomFilter');
 const cloud189Utils = require('../utils/Cloud189Utils');
 const alistService = require('./alistService');
-const TelegramBotManager = require('../utils/TelegramBotManager');
-const WeChatWorkManager = require('./WeChatWorkService');
 
 class TaskService {
     constructor(taskRepo, accountRepo) {
@@ -259,6 +257,10 @@ class TaskService {
             const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
             if (tmdbApiKey && !tmdbParsed && taskDto && !taskDto.manualTmdbBound) {
                 try {
+                    // [延迟加载] 避免循环依赖导出 undefined
+                    const TelegramBotManager = require('../utils/TelegramBotManager');
+                    const WeChatWorkManager = require('./WeChatWorkService');
+
                     // 发送互动式机器人通知 (Telegram)
                     const tgBot = TelegramBotManager.getInstance().getBot();
                     if (tgBot) {
