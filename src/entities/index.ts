@@ -181,6 +181,9 @@ export class Task {
     @Column({ nullable: true })
     tmdbId!: string; // tmdbId, 用于匹配tmdb和emby的电影
     
+    @Column('text', { nullable: true })
+    tmdbTitle!: string; // 手动绑定的影视名称
+
     @Column('boolean', { nullable: true, default: false })
     manualTmdbBound!: boolean; // 指示该任务及其关联文件的 TMDB 和类型是经过人工强制指定的
     

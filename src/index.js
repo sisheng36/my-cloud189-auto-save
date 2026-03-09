@@ -398,13 +398,14 @@ AppDataSource.initialize().then(async () => {
     app.post('/api/tasks/:id/manual-tmdb', async (req, res) => {
         try {
             const taskId = parseInt(req.params.id);
-            const { tmdbId, videoType } = req.body;
+            const { tmdbId, videoType, title } = req.body;
             if (!tmdbId || !videoType) throw new Error('参数缺失');
             const task = await taskRepo.findOneBy({ id: taskId });
             if (!task) throw new Error('任务不存在');
             
             task.tmdbId = tmdbId;
             task.videoType = videoType;
+            if (title) task.tmdbTitle = title;
             task.manualTmdbBound = true;
             await taskRepo.save(task);
 

@@ -209,6 +209,7 @@ class TaskService {
             try {
                 // 如果用户已经手动指定了 TMDB，则直接获取该详情
                 if (taskDto && taskDto.manualTmdbBound && taskDto.tmdbId && taskDto.videoType) {
+                    logTaskEvent(`[AI重命名] 检测到任务已手动绑定 TMDB ID: ${taskDto.tmdbId}，跳过自动搜索，直接拉取绑定信息。`);
                     const tmdbService = new TMDBService();
                     const detail = taskDto.videoType === 'movie' 
                         ? await tmdbService.getMovieDetails(taskDto.tmdbId)
@@ -219,11 +220,15 @@ class TaskService {
                         tmdbType = detail.type || taskDto.videoType;
                         if (detail.releaseDate) year = parseInt(detail.releaseDate.substring(0, 4)) || year;
                         tmdbParsed = true;
+                        logTaskEvent(`[AI重命名] 手动指定匹配成功: 成功获得影视名称【${tmdbName} (${year})】`);
+                    } else {
+                        logTaskEvent(`[AI重命名] 手动指定匹配失败: 无法根据提供的 TMDB ID 从远程获取到实际名称`);
                     }
                 } else {
                     // 检查是否配置了 TMDB API Key
                     const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
                     if (tmdbApiKey) {
+                        logTaskEvent(`[AI重命名] 未发现手动指定，正在通过 TMDB 自动搜索可能匹配的名称: ${baseName}...`);
                         // 查询 TMDB (优先返回中文名称)
                         const tmdbService = new TMDBService();
                         const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
