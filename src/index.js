@@ -22,6 +22,7 @@ const { EmbyService } = require('./services/emby');
 const { StrmService } = require('./services/strm');
 const AIService = require('./services/ai');
 const CustomPushService = require('./services/message/CustomPushService');
+const { TMDBService } = require('./services/tmdb');
 
 const app = express();
 app.use(cors({
@@ -368,6 +369,46 @@ AppDataSource.initialize().then(async () => {
             const taskId = parseInt(req.params.id);
             const updatedTask = await taskService.updateTask(taskId, req.body);
             res.json({ success: true, data: updatedTask });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
+    // 新增: TMDB 手动搜索接口
+    app.get('/api/tmdb/search', async (req, res) => {
+        try {
+            const { query, type } = req.query;
+            if (!query) throw new Error('搜索关键字不能为空');
+            const tmdbService = new TMDBService();
+            let results = [];
+            if (type === 'movie') {
+                const response = await tmdbService._request('/search/movie', { query, include_adult: false });
+                results = response.results || [];
+            } else {
+                const response = await tmdbService._request('/search/tv', { query, include_adult: false });
+                results = response.results || [];
+            }
+            res.json({ success: true, data: results });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
+    // 新增: 手动绑定 TMDB 接口
+    app.post('/api/tasks/:id/manual-tmdb', async (req, res) => {
+        try {
+            const taskId = parseInt(req.params.id);
+            const { tmdbId, videoType } = req.body;
+            if (!tmdbId || !videoType) throw new Error('参数缺失');
+            const task = await taskRepo.findOneBy({ id: taskId });
+            if (!task) throw new Error('任务不存在');
+            
+            task.tmdbId = tmdbId;
+            task.videoType = videoType;
+            task.manualTmdbBound = true;
+            await taskRepo.save(task);
+
+            res.json({ success: true, data: task });
         } catch (error) {
             res.json({ success: false, error: error.message });
         }

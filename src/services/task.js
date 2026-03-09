@@ -181,7 +181,7 @@ class TaskService {
         tasks.push(await this.taskRepo.save(task));
     }
 
-    async _analyzeResourceInfo(resourcePath, files, type = 'folder') {
+    async _analyzeResourceInfo(resourcePath, files, type = 'folder', taskDto = null) {
         try {
             if (type == 'folder') {
                 const result = await AIService.folderAnalysis(resourcePath, files);
@@ -205,29 +205,62 @@ class TaskService {
 
             let tmdbName = null;
             let tmdbParsed = false;
+            let tmdbType = type;
             try {
-                // 检查是否配置了 TMDB API Key
-                const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
-                if (tmdbApiKey) {
-                    // 查询 TMDB (优先返回中文名称)
+                // 如果用户已经手动指定了 TMDB，则直接获取该详情
+                if (taskDto && taskDto.manualTmdbBound && taskDto.tmdbId && taskDto.videoType) {
                     const tmdbService = new TMDBService();
-                    const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                    if (tvResult && tvResult.title) {
-                        tmdbName = tvResult.title;
-                        if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                    const detail = taskDto.videoType === 'movie' 
+                        ? await tmdbService.getMovieDetails(taskDto.tmdbId)
+                        : await tmdbService.getTVDetails(taskDto.tmdbId);
+                    
+                    if (detail && detail.title) {
+                        tmdbName = detail.title;
+                        tmdbType = detail.type || taskDto.videoType;
+                        if (detail.releaseDate) year = parseInt(detail.releaseDate.substring(0, 4)) || year;
                         tmdbParsed = true;
-                    } else {
-                        // 如果查不到剧集，则查电影
-                        const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
-                        if (movieResult && movieResult.title) {
-                            tmdbName = movieResult.title;
-                            if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                    }
+                } else {
+                    // 检查是否配置了 TMDB API Key
+                    const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+                    if (tmdbApiKey) {
+                        // 查询 TMDB (优先返回中文名称)
+                        const tmdbService = new TMDBService();
+                        const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                        if (tvResult && tvResult.title) {
+                            tmdbName = tvResult.title;
+                            tmdbType = 'tv';
+                            if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
                             tmdbParsed = true;
+                        } else {
+                            // 如果查不到剧集，则查电影
+                            const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
+                            if (movieResult && movieResult.title) {
+                                tmdbName = movieResult.title;
+                                tmdbType = 'movie';
+                                if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                                tmdbParsed = true;
+                            }
                         }
                     }
                 }
             } catch (err) {
                 logTaskEvent("TMDB 查询中文名失败: " + err.message);
+            }
+
+            // [新增] 如果配置了 TMDB 但是没查到，也没有手动绑定，发送通知需要人工干预
+            const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+            if (tmdbApiKey && !tmdbParsed && taskDto && !taskDto.manualTmdbBound) {
+                try {
+                    const MessageUtilModule = require('./message');
+                    const messageUtil = new MessageUtilModule.MessageUtil();
+                    await messageUtil.sendMessage({
+                        title: '⚠️需手动指定TMDB',
+                        content: `任务 "${taskDto.resourceName}" (${baseName}) 匹配 TMDB 失败。\n请前往后台管理系统的任务列表进行 [手动指定]`
+                    });
+                } catch (e) {
+                    console.error("发送 TMDB 手动匹配通知失败:", e);
+                }
             }
 
             // 确定最终用于重命名的标准名称 (优先 TMDB 官方中文)
@@ -286,7 +319,7 @@ class TaskService {
                 return {
                     name: finalName,
                     year: year || 0,
-                    type: localParsedEpisodes.length > 1 ? "tv" : "movie",
+                    type: tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie"),
                     season: localParsedEpisodes.length > 0 ? localParsedEpisodes[0].season : "01",
                     episode: localParsedEpisodes
                 };
@@ -297,12 +330,14 @@ class TaskService {
             logTaskEvent('本地正则无法完全匹配，回退极速版重命名，尝试使用 AI 对源文件进行大模型解析...');
             const result = await AIService.simpleChatCompletion(resourcePath, files);
             if (!result.success) {
+                // 如果 AI 分析失败且还没找到 TMDB 信息，可以判定完全失败
                 throw new Error('AI 分析失败: ' + result.error);
             }
 
             // 强制将 AI 给出的最终结果中的名字覆写为更准确的 TMDB 官方中文名
             if (tmdbParsed && result.data) {
                 result.data.name = finalName;
+                if (tmdbType) result.data.type = tmdbType;
                 if (year) result.data.year = year;
                 if (result.data.episode) {
                     result.data.episode.forEach(ep => {

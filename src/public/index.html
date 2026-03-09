@@ -166,6 +166,7 @@
                                     <a onclick="executeAllTask()">执行所有</a>
                                     <a onclick="deleteSelectedTasks()">批量删除</a>
                                     <a onclick="generateStrm()">生成STRM</a>
+                                    <a onclick="openManualTmdbModal()">手动指定TMDB</a>
                                 </div>
                             </div>
                         </div>
@@ -308,6 +309,35 @@
                     </form>
                 </div>
             </div>
+
+            <!-- 手动指定 TMDB 模态框 -->
+            <div id="manualTmdbModal" class="modal">
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3>手动指定 TMDB</h3>
+                    </div>
+                    <div class="form-body">
+                        <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <select id="tmdbSearchType" style="flex: 1;">
+                                <option value="tv">剧集 / 动漫 / 纪录片</option>
+                                <option value="movie">电影</option>
+                            </select>
+                            <input type="text" id="tmdbSearchQuery" placeholder="输入影视名称搜索..." style="flex: 3;" onkeyup="if(event.keyCode===13) searchTmdb()">
+                            <button class="btn-primary" onclick="searchTmdb()" style="margin-top: 0;">搜索</button>
+                        </div>
+                        <div class="form-group">
+                            <label>搜索结果 <small class="form-text">点击选择并绑定给勾选的任务</small></label>
+                            <div id="tmdbSearchResults" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                                <!-- 结果列表 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-default" onclick="closeManualTmdbModal()">关闭</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="table-container">
                 <table id="taskTable">
                     <thead>

@@ -713,6 +713,118 @@ function initFormToggle() {
 }
 
 
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+} 
+
+// ==================== [新增]: 手动关联 TMDB 逻辑 ====================
+
+// 1. 打开弹窗
+function openManualTmdbModal() {
+    const selectedTasks = document.querySelectorAll('#taskTable tbody tr.selected');
+    if (selectedTasks.length === 0) {
+        message.warning('请先勾选需要指定 TMDB 的任务');
+        return;
+    }
+    // 默认回填第一个选中任务的文件名称(如果可以获取的话) 到搜索框中
+    const firstTaskName = selectedTasks[0].getAttribute('data-name');
+    if (firstTaskName) {
+        // 尝试剥离年份等
+        const yearMatch = firstTaskName.match(/(.+?)\s*\(?(\d{4})\)?\s*$/);
+        document.getElementById('tmdbSearchQuery').value = yearMatch ? yearMatch[1] : firstTaskName;
+    }
+    document.getElementById('tmdbSearchResults').innerHTML = '';
+    document.getElementById('manualTmdbModal').style.display = 'block';
+}
+
+function closeManualTmdbModal() {
+    document.getElementById('manualTmdbModal').style.display = 'none';
+    document.getElementById('tmdbSearchQuery').value = '';
+    document.getElementById('tmdbSearchResults').innerHTML = '';
+}
+
+// 2. 搜索 TMDB
+async function searchTmdb() {
+    const query = document.getElementById('tmdbSearchQuery').value.trim();
+    const type = document.getElementById('tmdbSearchType').value;
+    if (!query) {
+        message.warning('请输入搜索关键字');
+        return;
+    }
+    
+    const resultsContainer = document.getElementById('tmdbSearchResults');
+    resultsContainer.innerHTML = '<div style="text-align:center; padding: 20px;">正在搜索，请稍候...</div>';
+    
+    try {
+        const response = await fetch(`/api/tmdb/search?query=${encodeURIComponent(query)}&type=${type}`);
+        const data = await response.json();
+        if (data.success) {
+            if (!data.data || data.data.length === 0) {
+                resultsContainer.innerHTML = '<div style="text-align:center; padding: 20px; color: #888;">未找到相关结果</div>';
+                return;
+            }
+            resultsContainer.innerHTML = data.data.map(item => `
+                <div class="tmdb-result-item" style="display: flex; gap: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; align-items: center; cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--hover-bg-color)'" onmouseout="this.style.backgroundColor='transparent'">
+                    <img src="${item.poster_path ? 'https://image.tmdb.org/t/p/w92' + item.poster_path : '/icons/movie-placeholder.svg'}" alt="poster" style="width: 50px; border-radius: 4px; object-fit: cover;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 14px;">${item.title || item.name} ${item.release_date || item.first_air_date ? '(' + (item.release_date || item.first_air_date).substring(0,4) + ')' : ''}</div>
+                        <div style="font-size: 12px; color: #888; font-family: monospace;">TMDB ID: ${item.id}</div>
+                    </div>
+                    <div>
+                        <button class="btn-primary btn-small" onclick="bindTmdbToTasks('${item.id}', '${type}', '${(item.title || item.name).replace(/'/g, "\\'")}')">绑定所选任务</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            resultsContainer.innerHTML = `<div style="text-align:center; padding: 20px; color: red;">搜索失败: ${data.error}</div>`;
+        }
+    } catch (error) {
+        resultsContainer.innerHTML = `<div style="text-align:center; padding: 20px; color: red;">请求错误: ${error.message}</div>`;
+    }
+}
+
+// 3. 绑定并触发重新执行
+async function bindTmdbToTasks(tmdbId, videoType, title) {
+    const selectedTasks = document.querySelectorAll('#taskTable tbody tr.selected');
+    const taskIds = Array.from(selectedTasks).map(row => row.getAttribute('data-task-id'));
+
+    if (taskIds.length === 0) {
+        message.warning('请先勾选需要指定的任务!');
+        return;
+    }
+
+    if (!confirm(`确定要将这 ${taskIds.length} 个任务强制绑定为 "${title}" 吗？\n绑定后其后续处理及历史文件将无视默认规则，优先使用此名称。`)) {
+        return;
+    }
+
+    loading.show();
+    let successCount = 0;
+    try {
+        for (const taskId of taskIds) {
+            const resp = await fetch(`/api/tasks/${taskId}/manual-tmdb`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tmdbId, videoType })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                // 绑定完成后，立即自动触发一次任务执行，便于修正积压的文件
+                await fetch(`/api/tasks/${taskId}/execute`, { method: 'POST' });
+                successCount++;
+            }
+        }
+        loading.hide();
+        message.success(`成功绑定 ${successCount}/${taskIds.length} 个任务，并已在后台触发执行更新。`);
+        closeManualTmdbModal();
+        fetchTasks();
+    } catch (error) {
+        loading.hide();
+        message.warning('绑定过程中发生错误: ' + error.message);
+    }
+}
 function filterTasks() {
     const taskFilter = document.getElementById('taskFilter');
     const taskSearch = document.getElementById('taskSearch');
