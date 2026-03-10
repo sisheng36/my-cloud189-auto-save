@@ -275,10 +275,9 @@ class TaskService {
                     // 保留原有通用通知作为保底
                     const MessageUtilModule = require('./message');
                     const messageUtil = new MessageUtilModule.MessageUtil();
-                    await messageUtil.sendMessage({
-                        title: '⚠️匹配TMDB失败',
-                        content: `任务 "${taskDto.resourceName}" (${baseName}) 匹配 TMDB 失败，已触发机器人互动通知，也可前往后台手动指定。`
-                    });
+                    await messageUtil.sendMessage(
+                        `⚠️匹配TMDB失败\n任务 "${taskDto.resourceName}" (${baseName}) 匹配 TMDB 失败，已触发机器人互动通知，也可前往后台手动指定。`
+                    );
                 } catch (e) {
                     console.error("发送 TMDB 匹配失败通知失败:", e);
                 }
