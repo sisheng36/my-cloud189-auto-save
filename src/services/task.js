@@ -830,6 +830,7 @@ class TaskService {
         if (updates.shareLink || updates.accessCode !== undefined || updates.shareFolderId) {
             const shareLink = updates.shareLink || task.shareLink;
             const accessCode = updates.accessCode !== undefined ? updates.accessCode : task.accessCode;
+            const linkChanged = updates.shareLink && updates.shareLink !== task.shareLink;
             
             let shareCode = shareLink ? cloud189Utils.parseShareCode(shareLink) : null;
             if (shareCode) {
@@ -849,8 +850,15 @@ class TaskService {
                         task.shareId = shareInfo.shareId;
                         task.shareMode = shareInfo.shareMode || (accessCode ? 2 : 1);
                         task.isFolder = shareInfo.isFolder;
+                        // 每次更新都同步 shareFileId（根 ID）
+                        task.shareFileId = shareInfo.fileId;
 
-                        if (updates.shareFolderId === '-1') {
+                        // 当链接本身发生变化时，旧的 shareFolderId 对新的 shareId 无效
+                        // 必须重置为新链接的根目录 fileId，用户可之后再选子目录
+                        if (linkChanged) {
+                            task.shareFolderId = shareInfo.fileId;
+                            task.shareFolderName = '';
+                        } else if (updates.shareFolderId === '-1') {
                             task.shareFolderId = shareInfo.fileId;
                             task.shareFolderName = '';
                         } else if (updates.shareFolderId) {
