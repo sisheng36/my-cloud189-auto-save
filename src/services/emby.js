@@ -40,12 +40,12 @@ class EmbyService {
         logTaskEvent(`Emby搜索结果: ${ JSON.stringify(item)}`);
         if (item) {
             await this.refreshItemById(item.Id);
-            this.messageUtil.sendMessage('🎉通知Emby入库成功, 资源名:' + task.resourceName);
+            this.messageUtil.sendMessage('【天翼云转存】\n🎉通知Emby入库成功, 资源名:' + task.resourceName);
             return item.Id
         }else{
             logTaskEvent(`Emby未搜索到电影/剧集: ${taskName}, 执行全库扫描`);
             await this.refreshAllLibraries();
-            this.messageUtil.sendMessage('🎉通知Emby入库成功, 资源名:' + task.resourceName);
+            this.messageUtil.sendMessage('【天翼云转存】\n🎉通知Emby入库成功, 资源名:' + task.resourceName);
             return null;
         }
     }

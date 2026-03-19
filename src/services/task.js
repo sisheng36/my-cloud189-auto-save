@@ -1033,7 +1033,7 @@ class TaskService {
             message.splice(5, message.length - 10, '├─ ...');
         }
         message.length > 0 && logTaskEvent(`${task.resourceName}自动重命名完成: \n${message.join('\n')}`)
-        message.length > 0 && this.messageUtil.sendMessage(`${task.resourceName}自动重命名: \n${message.join('\n')}`);
+        message.length > 0 && this.messageUtil.sendMessage(`【天翼云转存】\n${task.resourceName}自动重命名: \n${message.join('\n')}`);
     }
 
     // 根据AI分析结果生成新文件名
