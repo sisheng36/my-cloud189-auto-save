@@ -830,23 +830,34 @@ class TaskService {
             const shareLink = updates.shareLink || task.shareLink;
             const accessCode = updates.accessCode !== undefined ? updates.accessCode : task.accessCode;
             
-            let shareCode = shareLink ? shareLink.substring(shareLink.lastIndexOf('/') + 1) : null;
+            let shareCode = shareLink ? cloud189Utils.parseShareCode(shareLink) : null;
             if (shareCode) {
                 const cloud189 = Cloud189Service.getInstance(task.account);
-                const shareInfo = await cloud189.getShareInfo(shareCode);
-                if (shareInfo) {
-                    task.shareLink = shareLink;
-                    task.accessCode = accessCode;
-                    task.shareId = shareInfo.shareId;
-                    task.shareMode = shareInfo.shareMode || (accessCode ? 2 : 1);
-                    task.isFolder = shareInfo.isFolder;
+                try {
+                    const shareInfo = await this.getShareInfo(cloud189, shareCode);
+                    if (shareInfo) {
+                        if (shareInfo.shareMode == 1) {
+                            if (!accessCode) throw new Error('分享链接为私密链接, 请输入提取码');
+                            const accessCodeResponse = await cloud189.checkAccessCode(shareCode, accessCode);
+                            if (!accessCodeResponse || !accessCodeResponse.shareId) throw new Error('提取码无效');
+                            shareInfo.shareId = accessCodeResponse.shareId;
+                        }
 
-                    if (updates.shareFolderId === '-1') {
-                        task.shareFolderId = shareInfo.fileId;
-                        task.shareFolderName = '';
-                    } else if (updates.shareFolderId) {
-                        task.shareFolderId = updates.shareFolderId;
+                        task.shareLink = shareLink;
+                        task.accessCode = accessCode;
+                        task.shareId = shareInfo.shareId;
+                        task.shareMode = shareInfo.shareMode || (accessCode ? 2 : 1);
+                        task.isFolder = shareInfo.isFolder;
+
+                        if (updates.shareFolderId === '-1') {
+                            task.shareFolderId = shareInfo.fileId;
+                            task.shareFolderName = '';
+                        } else if (updates.shareFolderId) {
+                            task.shareFolderId = updates.shareFolderId;
+                        }
                     }
+                } catch (e) {
+                    throw new Error('修改链接失败: ' + e.message);
                 }
             }
         }
