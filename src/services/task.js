@@ -666,6 +666,7 @@ class TaskService {
             task.account = account;
             const cloud189 = Cloud189Service.getInstance(account);
              // 获取分享文件列表并进行增量转存
+             logTaskEvent(`[DEBUG] listShareDir params => shareId:${task.shareId} shareFolderId:${task.shareFolderId} shareMode:${task.shareMode} isFolder:${task.isFolder}`);
              const shareDir = await cloud189.listShareDir(task.shareId, task.shareFolderId, task.shareMode,task.accessCode, task.isFolder);
              if(shareDir.res_code == "ShareAuditWaiting") {
                 logTaskEvent("分享链接审核中, 等待下次执行")
