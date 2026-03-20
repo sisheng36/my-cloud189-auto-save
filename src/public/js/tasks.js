@@ -66,6 +66,7 @@ async function fetchTasks() {
                         <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
                         <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
                         <button onclick="showEditTaskModal(${task.id})">修改</button>
+                        <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
                     </td>
                     <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a></td>
                     <td data-label="账号">${task.account.username}</td>
@@ -103,6 +104,30 @@ async function fetchTasks() {
     }
 }
 
+async function clearTaskCache(id) {
+    if (!confirm('确定要手动清除该任务的文件过滤缓存吗？')) return;
+    const cacheBtn = document.querySelector(`button[onclick="clearTaskCache(${id})"]`);
+    if (cacheBtn) {
+        cacheBtn.classList.add('loading');
+        cacheBtn.disabled = true;
+    }
+    try {
+        const response = await fetch(`/api/tasks/${id}/clear-cache`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+            message.success('任务缓存已清除');
+        } else {
+            message.warning('任务缓存清除失败: ' + data.error);
+        }
+    } catch (error) {
+        message.warning('任务缓存清除失败: ' + error.message);
+    } finally {
+        if (cacheBtn) {
+            cacheBtn.classList.remove('loading');
+            cacheBtn.disabled = false;
+        }
+    }
+}
 
 async function executeTask(id, refresh = true) {
     const executeBtn = document.querySelector(`button[onclick="executeTask(${id})"]`);

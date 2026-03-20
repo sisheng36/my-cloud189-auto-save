@@ -6,6 +6,7 @@ const { TaskService } = require('./services/task');
 const { Cloud189Service } = require('./services/cloud189');
 const { MessageUtil } = require('./services/message');
 const { CacheManager } = require('./services/CacheManager')
+const taskCacheManager = require('./services/TaskCacheManager');
 const ConfigService = require('./services/ConfigService');
 const packageJson = require('../package.json');
 const session = require('express-session');
@@ -382,6 +383,16 @@ AppDataSource.initialize().then(async () => {
             const taskId = parseInt(req.params.id);
             const updatedTask = await taskService.updateTask(taskId, req.body);
             res.json({ success: true, data: updatedTask });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
+    app.post('/api/tasks/:id/clear-cache', async (req, res) => {
+        try {
+            const taskId = parseInt(req.params.id);
+            await taskCacheManager.clearCache(taskId);
+            res.json({ success: true, data: null });
         } catch (error) {
             res.json({ success: false, error: error.message });
         }

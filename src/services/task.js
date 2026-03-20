@@ -7,6 +7,7 @@ const { CreateTaskDto } = require('../dto/TaskDto');
 const { BatchTaskDto } = require('../dto/BatchTaskDto');
 const { TaskCompleteEventDto } = require('../dto/TaskCompleteEventDto');
 const { SchedulerService } = require('./scheduler');
+const taskCacheManager = require('./TaskCacheManager');
 
 const path = require('path');
 const { StrmService } = require('./strm');
@@ -451,6 +452,7 @@ class TaskService {
     async deleteTask(taskId, deleteCloud) {
         const task = await this.getTaskById(taskId);
         if (!task) throw new Error('任务不存在');
+        await taskCacheManager.clearCache(taskId);
         const folderName = task.realFolderName.substring(task.realFolderName.indexOf('/') + 1);
         if (!task.enableSystemProxy && deleteCloud) {
             const account = await this.accountRepo.findOneBy({ id: task.accountId });
@@ -706,6 +708,9 @@ class TaskService {
                 throw new Error('获取文件列表失败');
             }
             let shareFiles = [...shareDir.fileListAO.fileList];            
+            const cachedFileIds = await taskCacheManager.getCache(task.id);
+            const unprocessedShareFiles = shareFiles.filter(f => f.isFolder || !cachedFileIds.has(String(f.id)));
+            shareFiles = unprocessedShareFiles;
             const folderFiles = await this.getAllFolderFiles(cloud189, task);
             const enableOnlySaveMedia = ConfigService.getConfigValue('task.enableOnlySaveMedia');
             // mediaSuffixs转为小写
@@ -791,6 +796,11 @@ class TaskService {
             if (task.totalEpisodes && task.currentEpisodes >= task.totalEpisodes) {
                 task.status = 'completed';
                 logTaskEvent(`${task.resourceName} 已完结`)
+            }
+
+            const newEvaluatedIds = unprocessedShareFiles.filter(f => !f.isFolder).map(f => String(f.id));
+            if (newEvaluatedIds.length > 0) {
+                await taskCacheManager.addCache(task.id, newEvaluatedIds);
             }
 
             task.lastCheckTime = new Date();
