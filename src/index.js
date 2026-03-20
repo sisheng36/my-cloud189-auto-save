@@ -382,6 +382,8 @@ AppDataSource.initialize().then(async () => {
         try {
             const taskId = parseInt(req.params.id);
             const updatedTask = await taskService.updateTask(taskId, req.body);
+            // 清除该任务的分享目录缓存，防止资源目录弹窗返回旧数据
+            folderCache.clearPrefix(`share_folders_${taskId}_`);
             res.json({ success: true, data: updatedTask });
         } catch (error) {
             res.json({ success: false, error: error.message });
