@@ -25,6 +25,7 @@ const AIService = require('./services/ai');
 const CustomPushService = require('./services/message/CustomPushService');
 const { TMDBService } = require('./services/tmdb');
 const WeChatWorkManager = require('./services/WeChatWorkService');
+const cloud189Utils = require('./utils/Cloud189Utils');
 
 const app = express();
 app.use(cors({
