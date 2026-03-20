@@ -7,7 +7,9 @@ let shareFolderSelector = new FolderSelector({
     },
     buildParams: (accountId, folderId) => {
         const taskId = document.getElementById('editTaskId').value;
-        return `${accountId}?folderId=${folderId}&taskId=${taskId}`;
+        const shareLink = encodeURIComponent(document.getElementById('editShareLink')?.value?.trim() || '');
+        const accessCode = encodeURIComponent(document.getElementById('editAccessCode')?.value?.trim() || '');
+        return `${accountId}?folderId=${folderId}&taskId=${taskId}&shareLink=${shareLink}&accessCode=${accessCode}`;
     }
 });
 
