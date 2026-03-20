@@ -1,5 +1,5 @@
 :root {
-    --app-max-width: 1380px;
+    --app-max-width: 1680px;
     --page-padding: 28px;
     --header-surface: rgba(255, 255, 255, 0.72);
     --panel-surface: rgba(255, 255, 255, 0.88);
@@ -511,6 +511,12 @@ tbody th:last-child {
     margin-bottom: 14px;
 }
 
+[data-ui-style="media"] .header,
+[data-ui-style="media"] .theme-switch,
+[data-ui-style="media"] .container {
+    max-width: min(1940px, calc(100vw - 36px));
+}
+
 .theme-toggle-btn {
     display: inline-flex;
     align-items: center;
@@ -635,14 +641,14 @@ tbody th:last-child {
 
 [data-ui-style="media"] #taskTable tbody {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 22px;
+    grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+    gap: 24px;
 }
 
 [data-ui-style="media"] #taskTable tr.media-wall-card {
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
-    gap: 18px;
+    grid-template-columns: 136px minmax(0, 1fr);
+    gap: 20px;
     align-items: stretch;
     padding: 18px;
     margin: 0;
@@ -669,8 +675,8 @@ tbody th:last-child {
 
 .media-wall-poster {
     position: relative;
-    width: 112px;
-    min-height: 168px;
+    width: 136px;
+    min-height: 204px;
     border-radius: 18px;
     overflow: hidden;
     background-size: cover;
@@ -747,7 +753,7 @@ tbody th:last-child {
 .media-wall-overview {
     display: -webkit-box;
     overflow: hidden;
-    min-height: 70px;
+    min-height: 84px;
     margin: 0;
     color: rgba(71, 85, 105, 0.92);
     font-size: 13px;
@@ -769,7 +775,7 @@ tbody th:last-child {
 }
 
 .media-wall-latest {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 700;
     color: rgba(146, 64, 14, 0.96);
 }
@@ -818,8 +824,14 @@ tbody th:last-child {
 }
 
 @media (max-width: 900px) {
+    [data-ui-style="media"] .header,
+    [data-ui-style="media"] .theme-switch,
+    [data-ui-style="media"] .container {
+        max-width: min(1940px, calc(100vw - 24px));
+    }
+
     [data-ui-style="media"] #taskTable tbody {
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
     }
 }
 

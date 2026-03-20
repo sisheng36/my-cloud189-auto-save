@@ -62,7 +62,7 @@ function setUiStyle(uiStyle) {
     ensureUiThemeStylesheet(uiStyle !== 'classic');
     const heroPanel = document.getElementById('heroPanel');
     if (heroPanel) {
-        heroPanel.hidden = uiStyle === 'classic';
+        heroPanel.hidden = uiStyle !== 'console';
     }
     if (typeof fetchTasks === 'function') {
         fetchTasks();
