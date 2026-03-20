@@ -396,9 +396,50 @@ textarea {
 }
 
 .table-container {
+    display: block;
     padding: 12px;
     border: 1px solid var(--panel-border);
     background: rgba(255, 255, 255, 0.4);
+}
+
+[data-ui-style="console"] #taskTable,
+[data-ui-style="console"] #accountTable,
+[data-ui-style="media"] #accountTable {
+    display: table;
+    width: 100%;
+}
+
+[data-ui-style="console"] #taskTable thead,
+[data-ui-style="console"] #accountTable thead,
+[data-ui-style="media"] #accountTable thead {
+    display: table-header-group;
+}
+
+[data-ui-style="console"] #taskTable tbody,
+[data-ui-style="console"] #accountTable tbody,
+[data-ui-style="media"] #accountTable tbody {
+    display: table-row-group;
+}
+
+[data-ui-style="console"] #taskTable tr,
+[data-ui-style="console"] #accountTable tr,
+[data-ui-style="media"] #accountTable tr {
+    display: table-row;
+}
+
+[data-ui-style="console"] #taskTable td,
+[data-ui-style="console"] #accountTable td,
+[data-ui-style="media"] #accountTable td,
+[data-ui-style="console"] #taskTable th,
+[data-ui-style="console"] #accountTable th,
+[data-ui-style="media"] #accountTable th {
+    display: table-cell;
+}
+
+[data-ui-style="console"] #taskTable td::before,
+[data-ui-style="console"] #accountTable td::before,
+[data-ui-style="media"] #accountTable td::before {
+    content: none;
 }
 
 table {
@@ -607,8 +648,9 @@ tbody th:last-child {
     margin: 0;
     border: 1px solid var(--panel-border);
     border-radius: 24px;
-    background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 247, 237, 0.92));
-    box-shadow: 0 18px 36px rgba(120, 53, 15, 0.10);
+    background: linear-gradient(180deg, rgba(255, 251, 235, 0.98), rgba(255, 245, 228, 0.94));
+    box-shadow: 0 18px 36px rgba(120, 53, 15, 0.12);
+    backdrop-filter: blur(8px);
 }
 
 [data-theme="dark"][data-ui-style="media"] #taskTable tr.media-wall-card {
@@ -633,7 +675,7 @@ tbody th:last-child {
     overflow: hidden;
     background-size: cover;
     background-position: center;
-    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.18);
+    box-shadow: 0 18px 30px rgba(15, 23, 42, 0.22);
 }
 
 .media-wall-poster::after {
@@ -705,7 +747,7 @@ tbody th:last-child {
 .media-wall-overview {
     display: -webkit-box;
     overflow: hidden;
-    min-height: 66px;
+    min-height: 70px;
     margin: 0;
     color: rgba(71, 85, 105, 0.92);
     font-size: 13px;
@@ -752,6 +794,23 @@ tbody th:last-child {
     flex-wrap: wrap;
     gap: 8px;
     margin-top: auto;
+}
+
+.media-wall-actions .btn-warning {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.media-wall-actions .btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+[data-ui-style="media"] #taskTable tr.media-wall-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 48px rgba(120, 53, 15, 0.18);
+}
+
+[data-theme="dark"][data-ui-style="media"] #taskTable tr.media-wall-card:hover {
+    box-shadow: 0 22px 50px rgba(2, 6, 23, 0.52);
 }
 
 .media-wall-actions button {

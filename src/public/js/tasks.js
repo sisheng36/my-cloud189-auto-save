@@ -4,6 +4,11 @@ let taskFilterParams = {
     search: ''
 };
 
+const taskTmdbCache = new Map();
+const taskTmdbPending = new Set();
+let mediaWallTasksSnapshot = [];
+let mediaWallRefreshTimer = null;
+
 
 // 任务相关功能
 function createProgressRing(current, total) {
@@ -83,6 +88,90 @@ function parseTmdbContent(task) {
     }
 }
 
+function deriveMediaQuery(task) {
+    const candidates = [task.tmdbTitle, task.resourceName, task.lastSavedFileName, task.lastSavedDisplayText]
+        .filter(Boolean)
+        .map(value => String(value));
+    for (const item of candidates) {
+        let query = item
+            .replace(/\.[a-z0-9]{2,4}$/i, ' ')
+            .replace(/S\d{1,2}E\d{1,3}/gi, ' ')
+            .replace(/第\s*\d{1,4}\s*[集话]/g, ' ')
+            .replace(/\b(EP|E)\s*\d{1,4}\b/gi, ' ')
+            .replace(/[\[\]()【】]/g, ' ')
+            .replace(/[._-]+/g, ' ')
+            .replace(/\b(19|20)\d{2}\b/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (query.length >= 2) {
+            return query.split(' ').slice(0, 6).join(' ');
+        }
+    }
+    return '';
+}
+
+function scheduleMediaWallRefresh() {
+    if (mediaWallRefreshTimer) {
+        clearTimeout(mediaWallRefreshTimer);
+    }
+    mediaWallRefreshTimer = setTimeout(() => {
+        const currentUiStyle = document.documentElement.getAttribute('data-ui-style') || 'classic';
+        if (currentUiStyle === 'media') {
+            renderTaskMediaWall(mediaWallTasksSnapshot);
+        }
+    }, 180);
+}
+
+async function enrichTaskTmdb(task) {
+    if (parseTmdbContent(task)) {
+        return;
+    }
+    if (taskTmdbCache.has(task.id)) {
+        task.tmdbContent = JSON.stringify(taskTmdbCache.get(task.id));
+        return;
+    }
+    if (taskTmdbPending.has(task.id)) {
+        return;
+    }
+    taskTmdbPending.add(task.id);
+    try {
+        let detail = null;
+        if (task.tmdbId && task.videoType) {
+            const detailResponse = await fetch(`/api/tmdb/detail?id=${encodeURIComponent(task.tmdbId)}&type=${encodeURIComponent(task.videoType)}`);
+            const detailData = await detailResponse.json();
+            if (detailData.success && detailData.data) {
+                detail = detailData.data;
+            }
+        }
+        if (!detail) {
+            const query = deriveMediaQuery(task);
+            if (query) {
+                const searchType = task.videoType === 'movie' ? 'movie' : 'tv';
+                const searchResponse = await fetch(`/api/tmdb/search?query=${encodeURIComponent(query)}&type=${encodeURIComponent(searchType)}`);
+                const searchData = await searchResponse.json();
+                const firstMatch = searchData?.success && Array.isArray(searchData.data) ? searchData.data[0] : null;
+                if (firstMatch?.id) {
+                    const detailType = searchType;
+                    const detailResponse = await fetch(`/api/tmdb/detail?id=${encodeURIComponent(firstMatch.id)}&type=${encodeURIComponent(detailType)}`);
+                    const detailData = await detailResponse.json();
+                    if (detailData.success && detailData.data) {
+                        detail = detailData.data;
+                    }
+                }
+            }
+        }
+        if (detail) {
+            taskTmdbCache.set(task.id, detail);
+            task.tmdbContent = JSON.stringify(detail);
+            scheduleMediaWallRefresh();
+        }
+    } catch (error) {
+        console.warn(`加载任务 ${task.id} 海报信息失败:`, error.message);
+    } finally {
+        taskTmdbPending.delete(task.id);
+    }
+}
+
 function getTaskPoster(task) {
     const tmdbContent = parseTmdbContent(task);
     return tmdbContent?.posterPath || tmdbContent?.backdropPath || '';
@@ -114,9 +203,11 @@ function getTaskMetaLine(task) {
 }
 
 function renderTaskMediaWall(tasks) {
+    mediaWallTasksSnapshot = tasks;
     const tbody = document.querySelector('#taskTable tbody');
     tbody.innerHTML = '';
     tasks.forEach(task => {
+        enrichTaskTmdb(task);
         taskList.push(task);
         const taskName = task.shareFolderName ? (task.resourceName + '/' + task.shareFolderName) : task.resourceName || '未知';
         const poster = getTaskPoster(task);

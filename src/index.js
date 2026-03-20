@@ -447,6 +447,21 @@ AppDataSource.initialize().then(async () => {
         }
     });
 
+    app.get('/api/tmdb/detail', async (req, res) => {
+        try {
+            const { id, type } = req.query;
+            if (!id || !type) throw new Error('参数缺失');
+            const tmdbService = new TMDBService();
+            const detail = type === 'movie'
+                ? await tmdbService.getMovieDetails(id)
+                : await tmdbService.getTVDetails(id);
+            if (!detail) throw new Error('未找到媒体详情');
+            res.json({ success: true, data: detail });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
     // 新增: 手动绑定 TMDB 接口
     app.post('/api/tasks/:id/manual-tmdb', async (req, res) => {
         try {
