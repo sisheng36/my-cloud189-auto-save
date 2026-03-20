@@ -8,6 +8,31 @@ async function loadVersion() {
     }
 }
 
+async function loadDashboardStats() {
+    try {
+        const response = await fetch('/api/tasks?status=all&search=');
+        const data = await response.json();
+        if (!data.success) {
+            return;
+        }
+        const tasks = data.data || [];
+        const stats = {
+            total: tasks.length,
+            processing: tasks.filter(task => task.status === 'processing').length,
+            completed: tasks.filter(task => task.status === 'completed').length,
+            missing: tasks.filter(task => task.missingEpisodes).length
+        };
+        Object.entries(stats).forEach(([key, value]) => {
+            const element = document.querySelector(`[data-stat="${key}"]`);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+    } catch (error) {
+        console.error('Failed to load dashboard stats:', error);
+    }
+}
+
 function debounce(func, wait) {
     let timeout;
     return function (...args) {
@@ -95,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化数据
     fetchAccounts(true);
     fetchTasks();
+    loadDashboardStats();
 
     // 定时刷新数据
     // setInterval(() => {

@@ -72,6 +72,87 @@ function formatMissingEpisodesTitle(task) {
     }
 }
 
+function parseTmdbContent(task) {
+    if (!task.tmdbContent) {
+        return null;
+    }
+    try {
+        return JSON.parse(task.tmdbContent);
+    } catch (error) {
+        return null;
+    }
+}
+
+function getTaskPoster(task) {
+    const tmdbContent = parseTmdbContent(task);
+    return tmdbContent?.posterPath || tmdbContent?.backdropPath || '';
+}
+
+function getTaskOverview(task) {
+    const tmdbContent = parseTmdbContent(task);
+    if (tmdbContent?.overview) {
+        return tmdbContent.overview;
+    }
+    return task.remark || '暂无简介';
+}
+
+function getTaskMetaLine(task) {
+    const tmdbContent = parseTmdbContent(task);
+    const metaParts = [];
+    if (task.videoType === 'movie') {
+        metaParts.push('电影');
+    } else if (task.videoType) {
+        metaParts.push('剧集');
+    }
+    if (tmdbContent?.releaseDate) {
+        metaParts.push(String(tmdbContent.releaseDate).slice(0, 4));
+    }
+    if (tmdbContent?.voteAverage) {
+        metaParts.push(`TMDB ${Number(tmdbContent.voteAverage).toFixed(1)}`);
+    }
+    return metaParts.join(' · ');
+}
+
+function renderTaskMediaWall(tasks) {
+    const tbody = document.querySelector('#taskTable tbody');
+    tbody.innerHTML = '';
+    tasks.forEach(task => {
+        taskList.push(task);
+        const taskName = task.shareFolderName ? (task.resourceName + '/' + task.shareFolderName) : task.resourceName || '未知';
+        const poster = getTaskPoster(task);
+        const overview = getTaskOverview(task);
+        const latestSaved = formatLatestSavedFile(task);
+        const metaLine = getTaskMetaLine(task);
+        tbody.innerHTML += `
+            <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
+                <td data-label="海报" class="media-wall-poster-cell">
+                    <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}" style="background-image:url('${poster}')">
+                        ${poster ? '' : '<span>暂无海报</span>'}
+                    </div>
+                </td>
+                <td data-label="信息" class="media-wall-info-cell">
+                    <div class="media-wall-topline">
+                        <span class="status-badge status-${task.status}">${formatStatus(task.status)}</span>
+                        ${metaLine ? `<span class="media-wall-meta">${metaLine}</span>` : ''}
+                    </div>
+                    <a href="${task.shareLink}" target="_blank" class='media-wall-title' title="${taskName}">${taskName}</a>
+                    <p class="media-wall-overview" title="${overview}">${overview}</p>
+                    <div class="media-wall-latest" title="${latestSaved}">${latestSaved}</div>
+                    ${formatMissingEpisodes(task) ? `<div class="media-wall-missing" title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
+                    <div class="media-wall-path" title="${task.realFolderName || task.realFolderId}">${task.realFolderName || task.realFolderId}</div>
+                    <div class="media-wall-actions">
+                        <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
+                        <button onclick="showEditTaskModal(${task.id})">修改</button>
+                        <button class="btn-default" onclick="showFileListModal('${task.id}')">目录</button>
+                        <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
+                        <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+}
+
 var taskList = []
 // 从taskList中获取任务
 function getTaskById(id) {
@@ -86,6 +167,11 @@ async function fetchTasks() {
     if (data.success) {
         const tbody = document.querySelector('#taskTable tbody');
         tbody.innerHTML = '';
+        const currentUiStyle = document.documentElement.getAttribute('data-ui-style') || 'classic';
+        if (currentUiStyle === 'media') {
+            renderTaskMediaWall(data.data);
+            return;
+        }
         data.data.forEach(task => {
             taskList.push(task)
             const taskName = task.shareFolderName?(task.resourceName + '/' + task.shareFolderName): task.resourceName || '未知'
