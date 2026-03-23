@@ -214,10 +214,18 @@ function renderTaskMediaWall(tasks) {
         const overview = getTaskOverview(task);
         const latestSaved = formatLatestSavedFile(task);
         const metaLine = getTaskMetaLine(task);
+        const tmdbContent = parseTmdbContent(task);
+        let tmdbUrl = '';
+        if (tmdbContent && tmdbContent.id) {
+            const type = task.videoType === 'movie' ? 'movie' : 'tv';
+            tmdbUrl = `https://www.themoviedb.org/${type}/${tmdbContent.id}`;
+        }
         tbody.innerHTML += `
             <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
                 <td data-label="海报" class="media-wall-poster-cell">
-                    <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}" style="background-image:url('${poster}')">
+                    <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}" 
+                         style="background-image:url('${poster}') ${tmdbUrl ? '; cursor: pointer;' : ''}"
+                         ${tmdbUrl ? `onclick="window.open('${tmdbUrl}', '_blank');"` : ''}>
                         ${poster ? '' : '<span>暂无海报</span>'}
                     </div>
                 </td>
