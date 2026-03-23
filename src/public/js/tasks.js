@@ -231,6 +231,7 @@ function renderTaskMediaWall(tasks) {
                     <div class="media-wall-latest" title="${latestSaved}">${latestSaved}</div>
                     ${formatMissingEpisodes(task) ? `<div class="media-wall-missing" title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
                     <div class="media-wall-path" title="${task.realFolderName || task.realFolderId}">${task.realFolderName || task.realFolderId}</div>
+                    <div class="media-wall-time" style="font-size: 11px; color: #94a3b8; margin-top: 4px;">更新时间: ${formatDateTime(task.lastFileUpdateTime) || '无'}</div>
                     <div class="media-wall-actions">
                         <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
                         <button onclick="showEditTaskModal(${task.id})">修改</button>

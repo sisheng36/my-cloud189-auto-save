@@ -34,11 +34,14 @@ input, select {
 }
 
 input[type="checkbox"], input[type="radio"] {
-    width: auto;
-    padding: 0;
-    margin: 0 4px 0 0;
+    width: 16px !important;
+    height: 16px !important;
+    flex: none;
+    padding: 0 !important;
+    margin: 0 5px 0 0 !important;
     vertical-align: middle;
     cursor: pointer;
+    appearance: auto;
 }
 
 input:focus,

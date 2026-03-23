@@ -594,21 +594,7 @@ tbody th:last-child {
     box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
 }
 
-[data-ui-style="media"] .header::after {
-    content: "追更与转存中枢";
-    position: absolute;
-    right: 28px;
-    bottom: 12px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
-    color: rgba(180, 83, 9, 0.75);
-    text-transform: uppercase;
-}
 
-[data-theme="dark"][data-ui-style="media"] .header::after {
-    color: rgba(253, 186, 116, 0.78);
-}
 
 [data-ui-style="console"] .header::after {
     content: "Automation Console";
