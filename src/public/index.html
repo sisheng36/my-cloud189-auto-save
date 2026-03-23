@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-ui-style="media">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="/css/floating-btn.css">
     <link rel="stylesheet" href="/css/cloudsaver.css">
     <link rel="stylesheet" href="/css/chat.css">
+    <link rel="stylesheet" href="/css/ui-themes.css">
 </head>
 <body>
     <div class="header">
@@ -59,48 +60,9 @@
                 <span class="theme-icon"></span>
                 跟随系统
             </div>
-            <div class="theme-divider"></div>
-            <div class="theme-group-label">界面风格</div>
-            <div class="theme-option" data-ui-style="classic">
-                <span class="theme-style-dot theme-style-classic"></span>
-                保留当前界面
-            </div>
-            <div class="theme-option" data-ui-style="console">
-                <span class="theme-style-dot theme-style-console"></span>
-                专业控制台
-            </div>
-            <div class="theme-option" data-ui-style="media">
-                <span class="theme-style-dot theme-style-media"></span>
-                媒体追更面板
-            </div>
         </div>
     </div>
     <div class="container">
-        <div class="hero-panel" id="heroPanel" hidden>
-            <div class="hero-copy">
-                <div class="hero-eyebrow">Cloud 189 Automation</div>
-                <h2>把转存任务、追更进度和缺集风险集中在一个更现代的工作台中管理。</h2>
-                <p>这里提供两套可切换主题：偏专业调度后台的控制台风，以及更适合影视追更的媒体面板风。你可以在右上角随时切换。</p>
-            </div>
-            <div class="hero-stats">
-                <div class="hero-stat-card">
-                    <span class="hero-stat-label">任务总数</span>
-                    <strong data-stat="total">-</strong>
-                </div>
-                <div class="hero-stat-card">
-                    <span class="hero-stat-label">追更中</span>
-                    <strong data-stat="processing">-</strong>
-                </div>
-                <div class="hero-stat-card">
-                    <span class="hero-stat-label">已完结</span>
-                    <strong data-stat="completed">-</strong>
-                </div>
-                <div class="hero-stat-card">
-                    <span class="hero-stat-label">存在缺集</span>
-                    <strong data-stat="missing">-</strong>
-                </div>
-            </div>
-        </div>
         <div class="tabs">
             <div class="tab" data-tab="account">账号</div>
             <div class="tab active" data-tab="task">任务</div>
