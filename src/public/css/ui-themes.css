@@ -810,6 +810,36 @@ tbody th:last-child {
     margin: 0;
 }
 
+[data-ui-style="media"] #taskTable tr.media-wall-card.selected {
+    position: relative;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color) inset, 0 10px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+}
+
+[data-theme="dark"][data-ui-style="media"] #taskTable tr.media-wall-card.selected {
+    box-shadow: 0 0 0 2px var(--primary-color) inset, 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-ui-style="media"] #taskTable tr.media-wall-card.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
 @media (max-width: 900px) {
     [data-ui-style="media"] .header,
     [data-ui-style="media"] .theme-switch,
