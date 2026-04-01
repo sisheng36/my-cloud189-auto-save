@@ -83,9 +83,11 @@ class TaskService {
         if (!this.checkFolderInList(taskDto, '-1')) {
             return {id: taskDto.targetFolderId, name: '', oldFolder: true}
         }
+        // 优先使用任务名称，如果没有设置则使用分享链接名称
+        const folderName = taskDto.taskName || shareInfo.fileName;
         // 检查目标文件夹是否存在
-        await this.checkFolderExists(cloud189, taskDto.targetFolderId, shareInfo.fileName, taskDto.overwriteFolder);
-        const targetFolder = await cloud189.createFolder(shareInfo.fileName, taskDto.targetFolderId);
+        await this.checkFolderExists(cloud189, taskDto.targetFolderId, folderName, taskDto.overwriteFolder);
+        const targetFolder = await cloud189.createFolder(folderName, taskDto.targetFolderId);
         if (!targetFolder || !targetFolder.id) throw new Error('创建目录失败');
         return targetFolder;
     }
