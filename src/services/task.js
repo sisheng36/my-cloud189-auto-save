@@ -74,7 +74,8 @@ class TaskService {
             sourceRegex: taskDto.sourceRegex,
             targetRegex: taskDto.targetRegex,
             enableTaskScraper: taskDto.enableTaskScraper,
-            isFolder: taskDto.isFolder
+            isFolder: taskDto.isFolder,
+            videoType: taskDto.videoType
         };
     }
 
@@ -234,20 +235,41 @@ class TaskService {
                         logTaskEvent(`[AI重命名] 未发现手动指定，正在通过 TMDB 自动搜索可能匹配的名称: ${baseName}...`);
                         // 查询 TMDB (优先返回中文名称)
                         const tmdbService = new TMDBService();
-                        const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                        if (tvResult && tvResult.title) {
-                            tmdbName = tvResult.title;
-                            tmdbType = 'tv';
-                            if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
-                            tmdbParsed = true;
-                        } else {
-                            // 如果查不到剧集，则查电影
+
+                        // 如果用户指定了videoType，优先按指定类型搜索
+                        if (taskDto?.videoType === 'movie') {
                             const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
                             if (movieResult && movieResult.title) {
                                 tmdbName = movieResult.title;
                                 tmdbType = 'movie';
                                 if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
                                 tmdbParsed = true;
+                            }
+                        } else if (taskDto?.videoType === 'tv') {
+                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                            if (tvResult && tvResult.title) {
+                                tmdbName = tvResult.title;
+                                tmdbType = 'tv';
+                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                                tmdbParsed = true;
+                            }
+                        } else {
+                            // 未指定类型，按原逻辑先搜剧集再搜电影
+                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                            if (tvResult && tvResult.title) {
+                                tmdbName = tvResult.title;
+                                tmdbType = 'tv';
+                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                                tmdbParsed = true;
+                            } else {
+                                // 如果查不到剧集，则查电影
+                                const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
+                                if (movieResult && movieResult.title) {
+                                    tmdbName = movieResult.title;
+                                    tmdbType = 'movie';
+                                    if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                                    tmdbParsed = true;
+                                }
                             }
                         }
                     }
@@ -339,10 +361,12 @@ class TaskService {
             // 如果全部文件都能被正则快速解析，直接返回构造好的结果！
             if (allMatched && files.length > 0) {
                 logTaskEvent(`极速版重命名生效: 已全量使用本地正则匹配成功，跳过耗时的AI请求 (${finalName})`);
+                // 优先使用用户指定的类型，其次TMDB类型，最后根据文件数量自动判断
+                const finalType = taskDto?.videoType || tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie");
                 return {
                     name: finalName,
                     year: year || 0,
-                    type: tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie"),
+                    type: finalType,
                     season: localParsedEpisodes.length > 0 ? localParsedEpisodes[0].season : "01",
                     episode: localParsedEpisodes
                 };
@@ -367,6 +391,11 @@ class TaskService {
                         ep.name = finalName;
                     });
                 }
+            }
+
+            // 如果用户指定了类型，强制使用用户指定的类型
+            if (taskDto?.videoType && result.data) {
+                result.data.type = taskDto.videoType;
             }
 
             return result.data;
@@ -940,7 +969,7 @@ class TaskService {
         }
 
         // 只允许更新特定字段
-        const allowedFields = ['resourceName', 'realFolderId', 'currentEpisodes', 'totalEpisodes', 'status','realFolderName', 'shareFolderName', 'matchPattern','matchOperator','matchValue','remark', 'enableCron', 'cronExpression', 'enableTaskScraper'];
+        const allowedFields = ['resourceName', 'realFolderId', 'currentEpisodes', 'totalEpisodes', 'status','realFolderName', 'shareFolderName', 'matchPattern','matchOperator','matchValue','remark', 'enableCron', 'cronExpression', 'enableTaskScraper', 'videoType'];
         for (const field of allowedFields) {
             if (updates[field] !== undefined) {
                 task[field] = updates[field];

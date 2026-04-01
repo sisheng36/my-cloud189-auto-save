@@ -307,6 +307,15 @@
                                     <label for="enableTaskScraper"><input type="checkbox" id="enableTaskScraper">启用刮削</label>
                                 </div>
                             </div>
+                            <div class="form-group">
+                                <label for="videoType">视频类型</label>
+                                <select id="videoType" style="width: 100%;">
+                                    <option value="">自动识别</option>
+                                    <option value="movie">电影</option>
+                                    <option value="tv">剧集 / 动漫 / 纪录片</option>
+                                </select>
+                                <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。选择"自动识别"则由系统根据TMDB匹配或文件数量自动判断。</small>
+                            </div>
                         </div>
                         <div class="form-actions">
                             <button type="submit">创建</button>
@@ -317,7 +326,7 @@
             </div>
 
             <!-- 手动指定 TMDB 模态框 -->
-            <div id="manualTmdbModal" class="modal" style="z-index: 1010;">
+            <div id="manualTmdbModal" class="modal" style="z-index: 1100;">
                 <div class="modal-content" style="max-width: 600px;">
                     <div class="modal-header">
                         <h3>手动指定 TMDB</h3>
@@ -810,6 +819,15 @@
                     <div class="push-item">
                         <label for="editEnableTaskScraper"><input type="checkbox" id="editEnableTaskScraper">启用刮削</label>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label for="editVideoType">视频类型</label>
+                    <select id="editVideoType" style="width: 100%;">
+                        <option value="">自动识别</option>
+                        <option value="movie">电影</option>
+                        <option value="tv">剧集 / 动漫 / 纪录片</option>
+                    </select>
+                    <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。</small>
                 </div>
             </div>
             <div class="form-actions">

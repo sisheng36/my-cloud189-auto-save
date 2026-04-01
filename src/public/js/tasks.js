@@ -447,6 +447,7 @@ function initTaskForm() {
         const targetRegex = document.getElementById('ctTargetRegex').value;
         const taskName = document.getElementById('taskName').value.trim();
         const enableTaskScraper = document.getElementById('enableTaskScraper').checked;
+        const videoType = document.getElementById('videoType').value;
         if (!taskName) {
             message.warning('任务名称不能为空');
             return;
@@ -472,7 +473,7 @@ function initTaskForm() {
             message.warning('至少选择一个分享目录');
             return;
         }
-        const body = { accountId, shareLink, totalEpisodes, targetFolderId, accessCode, matchPattern, matchOperator, matchValue, overwriteFolder: 0, remark, enableCron, cronExpression, targetFolder, selectedFolders, sourceRegex, targetRegex, taskName, enableTaskScraper };
+        const body = { accountId, shareLink, totalEpisodes, targetFolderId, accessCode, matchPattern, matchOperator, matchValue, overwriteFolder: 0, remark, enableCron, cronExpression, targetFolder, selectedFolders, sourceRegex, targetRegex, taskName, enableTaskScraper, videoType };
         await createTask(e,body)
             
     });
