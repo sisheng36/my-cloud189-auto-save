@@ -98,7 +98,7 @@ function deriveMediaQuery(task) {
             .replace(/S\d{1,2}E\d{1,3}/gi, ' ')
             .replace(/第\s*\d{1,4}\s*[集话]/g, ' ')
             .replace(/\b(EP|E)\s*\d{1,4}\b/gi, ' ')
-            .replace(/[\[\]()【】]/g, ' ')
+            .replace(/[\[\]()【】（）{}]/g, ' ')
             .replace(/[._-]+/g, ' ')
             .replace(/\b(19|20)\d{2}\b/g, ' ')
             .replace(/\s+/g, ' ')

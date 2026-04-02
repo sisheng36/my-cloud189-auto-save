@@ -113,7 +113,7 @@ class TaskService {
                 const rootTask = this.taskRepo.create(
                     this._createTaskConfig(
                         taskDto,
-                        shareInfo, rootFolder, `${shareInfo.fileName}(根)`, 0
+                        shareInfo, rootFolder, taskDto.taskName || shareInfo.fileName, 0
                     )
                 );
                 tasks.push(await this.taskRepo.save(rootTask));
@@ -163,7 +163,7 @@ class TaskService {
                 const subTask = this.taskRepo.create(
                     this._createTaskConfig(
                         taskDto,
-                        shareInfo, realFolder, shareInfo.fileName, 0, folder.id, folder.name
+                        shareInfo, realFolder, taskDto.taskName || shareInfo.fileName, 0, folder.id, folder.name
                     )
                 );
                 tasks.push(await this.taskRepo.save(subTask));
@@ -179,7 +179,7 @@ class TaskService {
         const task = this.taskRepo.create(
             this._createTaskConfig(
                 taskDto,
-                shareInfo, rootFolder, shareInfo.fileName, 0
+                shareInfo, rootFolder, taskDto.taskName || shareInfo.fileName, 0
             )
         );
         tasks.push(await this.taskRepo.save(task));
@@ -198,8 +198,8 @@ class TaskService {
             // ====== 针对文件类型优化的重命名 (TMDB 优先 + 本地正则全量匹配) ======
             let baseName = resourcePath;
             let year = 0;
-            // 提取基础名称和年份 (例如 "繁花 (2023)")
-            const yearMatch = resourcePath.match(/(.+?)\s*\(?(\d{4})\)?\s*$/);
+            // 提取基础名称和年份 (例如 "繁花 (2023)" 或 "繁花（2023）")
+            const yearMatch = resourcePath.match(/(.+?)\s*[\[\({【（]?(\d{4})[\]\)}】）]?\s*$/);
             if (yearMatch) {
                 baseName = yearMatch[1].trim();
                 year = parseInt(yearMatch[2]);
