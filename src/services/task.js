@@ -74,7 +74,8 @@ class TaskService {
             sourceRegex: taskDto.sourceRegex,
             targetRegex: taskDto.targetRegex,
             enableTaskScraper: taskDto.enableTaskScraper,
-            isFolder: taskDto.isFolder
+            isFolder: taskDto.isFolder,
+            videoType: taskDto.videoType
         };
     }
 
@@ -83,9 +84,11 @@ class TaskService {
         if (!this.checkFolderInList(taskDto, '-1')) {
             return {id: taskDto.targetFolderId, name: '', oldFolder: true}
         }
+        // 优先使用任务名称，如果没有设置则使用分享链接名称
+        const folderName = taskDto.taskName || shareInfo.fileName;
         // 检查目标文件夹是否存在
-        await this.checkFolderExists(cloud189, taskDto.targetFolderId, shareInfo.fileName, taskDto.overwriteFolder);
-        const targetFolder = await cloud189.createFolder(shareInfo.fileName, taskDto.targetFolderId);
+        await this.checkFolderExists(cloud189, taskDto.targetFolderId, folderName, taskDto.overwriteFolder);
+        const targetFolder = await cloud189.createFolder(folderName, taskDto.targetFolderId);
         if (!targetFolder || !targetFolder.id) throw new Error('创建目录失败');
         return targetFolder;
     }
@@ -110,7 +113,7 @@ class TaskService {
                 const rootTask = this.taskRepo.create(
                     this._createTaskConfig(
                         taskDto,
-                        shareInfo, rootFolder, `${shareInfo.fileName}(根)`, 0
+                        shareInfo, rootFolder, taskDto.taskName || shareInfo.fileName, 0
                     )
                 );
                 tasks.push(await this.taskRepo.save(rootTask));
@@ -160,7 +163,7 @@ class TaskService {
                 const subTask = this.taskRepo.create(
                     this._createTaskConfig(
                         taskDto,
-                        shareInfo, realFolder, shareInfo.fileName, 0, folder.id, folder.name
+                        shareInfo, realFolder, taskDto.taskName || shareInfo.fileName, 0, folder.id, folder.name
                     )
                 );
                 tasks.push(await this.taskRepo.save(subTask));
@@ -176,7 +179,7 @@ class TaskService {
         const task = this.taskRepo.create(
             this._createTaskConfig(
                 taskDto,
-                shareInfo, rootFolder, shareInfo.fileName, 0
+                shareInfo, rootFolder, taskDto.taskName || shareInfo.fileName, 0
             )
         );
         tasks.push(await this.taskRepo.save(task));
@@ -195,8 +198,8 @@ class TaskService {
             // ====== 针对文件类型优化的重命名 (TMDB 优先 + 本地正则全量匹配) ======
             let baseName = resourcePath;
             let year = 0;
-            // 提取基础名称和年份 (例如 "繁花 (2023)")
-            const yearMatch = resourcePath.match(/(.+?)\s*\(?(\d{4})\)?\s*$/);
+            // 提取基础名称和年份 (例如 "繁花 (2023)" 或 "繁花（2023）")
+            const yearMatch = resourcePath.match(/(.+?)\s*[\[\({【（]?(\d{4})[\]\)}】）]?\s*$/);
             if (yearMatch) {
                 baseName = yearMatch[1].trim();
                 year = parseInt(yearMatch[2]);
@@ -232,20 +235,41 @@ class TaskService {
                         logTaskEvent(`[AI重命名] 未发现手动指定，正在通过 TMDB 自动搜索可能匹配的名称: ${baseName}...`);
                         // 查询 TMDB (优先返回中文名称)
                         const tmdbService = new TMDBService();
-                        const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                        if (tvResult && tvResult.title) {
-                            tmdbName = tvResult.title;
-                            tmdbType = 'tv';
-                            if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
-                            tmdbParsed = true;
-                        } else {
-                            // 如果查不到剧集，则查电影
+
+                        // 如果用户指定了videoType，优先按指定类型搜索
+                        if (taskDto?.videoType === 'movie') {
                             const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
                             if (movieResult && movieResult.title) {
                                 tmdbName = movieResult.title;
                                 tmdbType = 'movie';
                                 if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
                                 tmdbParsed = true;
+                            }
+                        } else if (taskDto?.videoType === 'tv') {
+                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                            if (tvResult && tvResult.title) {
+                                tmdbName = tvResult.title;
+                                tmdbType = 'tv';
+                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                                tmdbParsed = true;
+                            }
+                        } else {
+                            // 未指定类型，按原逻辑先搜剧集再搜电影
+                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                            if (tvResult && tvResult.title) {
+                                tmdbName = tvResult.title;
+                                tmdbType = 'tv';
+                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                                tmdbParsed = true;
+                            } else {
+                                // 如果查不到剧集，则查电影
+                                const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
+                                if (movieResult && movieResult.title) {
+                                    tmdbName = movieResult.title;
+                                    tmdbType = 'movie';
+                                    if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                                    tmdbParsed = true;
+                                }
                             }
                         }
                     }
@@ -337,10 +361,12 @@ class TaskService {
             // 如果全部文件都能被正则快速解析，直接返回构造好的结果！
             if (allMatched && files.length > 0) {
                 logTaskEvent(`极速版重命名生效: 已全量使用本地正则匹配成功，跳过耗时的AI请求 (${finalName})`);
+                // 优先使用用户指定的类型，其次TMDB类型，最后根据文件数量自动判断
+                const finalType = taskDto?.videoType || tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie");
                 return {
                     name: finalName,
                     year: year || 0,
-                    type: tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie"),
+                    type: finalType,
                     season: localParsedEpisodes.length > 0 ? localParsedEpisodes[0].season : "01",
                     episode: localParsedEpisodes
                 };
@@ -365,6 +391,11 @@ class TaskService {
                         ep.name = finalName;
                     });
                 }
+            }
+
+            // 如果用户指定了类型，强制使用用户指定的类型
+            if (taskDto?.videoType && result.data) {
+                result.data.type = taskDto.videoType;
             }
 
             return result.data;
@@ -938,7 +969,7 @@ class TaskService {
         }
 
         // 只允许更新特定字段
-        const allowedFields = ['resourceName', 'realFolderId', 'currentEpisodes', 'totalEpisodes', 'status','realFolderName', 'shareFolderName', 'matchPattern','matchOperator','matchValue','remark', 'enableCron', 'cronExpression', 'enableTaskScraper'];
+        const allowedFields = ['resourceName', 'realFolderId', 'currentEpisodes', 'totalEpisodes', 'status','realFolderName', 'shareFolderName', 'matchPattern','matchOperator','matchValue','remark', 'enableCron', 'cronExpression', 'enableTaskScraper', 'videoType'];
         for (const field of allowedFields) {
             if (updates[field] !== undefined) {
                 task[field] = updates[field];

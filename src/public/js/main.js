@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         onSelect: ({ id, name, path }) => {
             document.getElementById('targetFolder').value = path;
             document.getElementById('targetFolderId').value = id;
+            if (typeof autoDetectVideoType === 'function') autoDetectVideoType();
         }
     });
 

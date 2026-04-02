@@ -230,6 +230,15 @@
                                 <input type="text" id="taskName" required readonly>
                                 <small class="form-text">默认使用分享目录第一个文件夹名称,识别完成后可更改</small>
                             </div>
+                            <div class="form-group">
+                                <label for="videoType">视频类型</label>
+                                <select id="videoType" style="width: 100%;">
+                                    <option value="">自动识别</option>
+                                    <option value="movie">电影</option>
+                                    <option value="tv">剧集 / 动漫 / 纪录片</option>
+                                </select>
+                                <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。选择"自动识别"则由系统根据TMDB匹配或文件数量自动判断。</small>
+                            </div>
                             <div class="form-group share-folders-group" style="display: none;">
                                 <label>分享目录</label>
                                 <div class="share-folders-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 0; border-radius: 4px;">
@@ -316,38 +325,7 @@
                 </div>
             </div>
 
-            <!-- 手动指定 TMDB 模态框 -->
-            <div id="manualTmdbModal" class="modal" style="z-index: 1010;">
-                <div class="modal-content" style="max-width: 600px;">
-                    <div class="modal-header">
-                        <h3>手动指定 TMDB</h3>
-                    </div>
-                    <div class="form-body">
-                        <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <select id="tmdbSearchType" style="flex: 1;">
-                                <option value="tv">剧集 / 动漫 / 纪录片</option>
-                                <option value="movie">电影</option>
-                            </select>
-                            <input type="text" id="tmdbSearchQuery" placeholder="输入影视名称搜索..." style="flex: 3;" onkeyup="if(event.keyCode===13) searchTmdb()">
-                            <button class="btn-primary" onclick="searchTmdb()" style="margin-top: 0;">搜索</button>
-                        </div>
-                        <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 10px; background: var(--hover-bg, #f5f7fa); border-radius: 6px;">
-                            <label for="tmdbManualSeason" style="margin: 0; white-space: nowrap; font-size: 13px; font-weight: 500;">强制季数（选填）：</label>
-                            <input type="number" id="tmdbManualSeason" min="1" max="99" placeholder="不填则自动识别，填了2则强制25E01" style="width: 200px; margin: 0;">
-                            <small style="color: #888; margin: 0;">仅对剧集类有效</small>
-                        </div>
-                        <div class="form-group">
-                            <label>搜索结果 <small class="form-text">点击选择并绑定给勾选的任务</small></label>
-                            <div id="tmdbSearchResults" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
-                                <!-- 结果列表 -->
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button type="button" class="btn-default" onclick="closeManualTmdbModal()">关闭</button>
-                    </div>
-                </div>
-            </div>
+
 
             <div class="table-container">
                 <table id="taskTable">
@@ -700,6 +678,39 @@
         </div>
     </div>
 
+    <!-- 手动指定 TMDB 模态框 -->
+    <div id="manualTmdbModal" class="modal" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>手动指定 TMDB</h3>
+            </div>
+            <div class="form-body">
+                <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <select id="tmdbSearchType" style="flex: 1;">
+                        <option value="tv">剧集 / 动漫 / 纪录片</option>
+                        <option value="movie">电影</option>
+                    </select>
+                    <input type="text" id="tmdbSearchQuery" placeholder="输入影视名称搜索..." style="flex: 3;" onkeyup="if(event.keyCode===13) searchTmdb()">
+                    <button class="btn-primary" onclick="searchTmdb()" style="margin-top: 0;">搜索</button>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 10px; background: var(--hover-bg, #f5f7fa); border-radius: 6px;">
+                    <label for="tmdbManualSeason" style="margin: 0; white-space: nowrap; font-size: 13px; font-weight: 500;">强制季数（选填）：</label>
+                    <input type="number" id="tmdbManualSeason" min="1" max="99" placeholder="不填则自动识别，填了2则强制25E01" style="width: 200px; margin: 0;">
+                    <small style="color: #888; margin: 0;">仅对剧集类有效</small>
+                </div>
+                <div class="form-group">
+                    <label>搜索结果 <small class="form-text">点击选择并绑定给勾选的任务</small></label>
+                    <div id="tmdbSearchResults" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 5px;">
+                        <!-- 结果列表 -->
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-default" onclick="closeManualTmdbModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
 <!-- 在 body 结束标签前添加以下脚本引用 -->
 <script src="/js/folderSelector.js"></script>
 <script src="/js/theme.js"></script>
@@ -732,12 +743,6 @@
             <div class="form-body">
                 <input type="hidden" id="editTaskId">
                 <div class="form-group">
-                    <label for="editResourceName">资源名</label>
-                    <div class="tree-select">
-                        <input type="text" id="editResourceName" required>
-                    </div>
-                </div>
-                <div class="form-group">
                     <label for="editShareLink">资源链接</label>
                     <div class="share-input-group" style="display: flex; gap: 10px;">
                         <input type="text" id="editShareLink" required style="flex: 2;" data-edit-share-input placeholder="可自动解析带访问码的链接">
@@ -746,10 +751,25 @@
                     <div id="editShareParseError" style="color: #ff4d4f; font-size: 10px; margin-top: 2px; min-height: 12px;"></div>
                 </div>
                 <div class="form-group">
+                    <label for="editResourceName">资源名</label>
+                    <div class="tree-select">
+                        <input type="text" id="editResourceName" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editVideoType">视频类型</label>
+                    <select id="editVideoType" style="width: 100%;">
+                        <option value="">自动识别</option>
+                        <option value="movie">电影</option>
+                        <option value="tv">剧集 / 动漫 / 纪录片</option>
+                    </select>
+                    <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。</small>
+                </div>
+                <div class="form-group">
                     <label for="shareFolderId">源目录(分享链接中的目录)</label>
                     <div class="tree-select">
-                        <input type="text" id="shareFolder" readonly required>
-                        <input type="hidden" id="shareFolderId" required>
+                        <input type="text" id="shareFolder" readonly placeholder="默认分享根目录">
+                        <input type="hidden" id="shareFolderId">
                         <div class="tree-select-dropdown"></div>
                     </div>
                 </div>

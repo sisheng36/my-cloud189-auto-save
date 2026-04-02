@@ -5,8 +5,12 @@
     padding: 0;
     list-style: none;
     overflow-x: auto;  /* 添加水平滚动 */
+    overflow-y: auto;  /* 添加垂直滚动以防内容过高 */
     white-space: nowrap;  /* 防止换行 */
     min-width: 200px;  /* 设置最小宽度 */
+    height: 100%;      /* 填充整个父容器高度，避免内容压缩 */
+    box-sizing: border-box;
+    padding-bottom: 10px; /* 给底部留点距离，防止和滚动条重合 */
 }
 
 .folder-tree-item {

@@ -50,6 +50,7 @@ function showEditTaskModal(id) {
         cronInput.style.display = this.checked? 'block' : 'none';
     });
     document.getElementById('editEnableTaskScraper').checked = task?.enableTaskScraper;
+    document.getElementById('editVideoType').value = task?.videoType || '';
 }
 
 async function parseEditShareLink() {
@@ -145,6 +146,7 @@ function initEditTaskForm() {
         const enableCron = document.getElementById('editEnableCron').checked;
         const cronExpression = document.getElementById('editCronExpression').value;
         const enableTaskScraper = document.getElementById('editEnableTaskScraper').checked;
+        const videoType = document.getElementById('editVideoType').value;
 
         try {
             loading.show()
@@ -168,7 +170,8 @@ function initEditTaskForm() {
                     remark,
                     enableCron,
                     cronExpression,
-                    enableTaskScraper
+                    enableTaskScraper,
+                    videoType
                 })
             });
             loading.hide()
