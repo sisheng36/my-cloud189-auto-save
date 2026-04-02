@@ -743,18 +743,27 @@
             <div class="form-body">
                 <input type="hidden" id="editTaskId">
                 <div class="form-group">
-                    <label for="editResourceName">资源名</label>
-                    <div class="tree-select">
-                        <input type="text" id="editResourceName" required>
-                    </div>
-                </div>
-                <div class="form-group">
                     <label for="editShareLink">资源链接</label>
                     <div class="share-input-group" style="display: flex; gap: 10px;">
                         <input type="text" id="editShareLink" required style="flex: 2;" data-edit-share-input placeholder="可自动解析带访问码的链接">
                         <input type="text" id="editAccessCode" placeholder="访问码（可选）" style="flex: 1;" data-edit-share-input>
                     </div>
                     <div id="editShareParseError" style="color: #ff4d4f; font-size: 10px; margin-top: 2px; min-height: 12px;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="editResourceName">资源名</label>
+                    <div class="tree-select">
+                        <input type="text" id="editResourceName" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editVideoType">视频类型</label>
+                    <select id="editVideoType" style="width: 100%;">
+                        <option value="">自动识别</option>
+                        <option value="movie">电影</option>
+                        <option value="tv">剧集 / 动漫 / 纪录片</option>
+                    </select>
+                    <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。</small>
                 </div>
                 <div class="form-group">
                     <label for="shareFolderId">源目录(分享链接中的目录)</label>
@@ -821,15 +830,6 @@
                     <div class="push-item">
                         <label for="editEnableTaskScraper"><input type="checkbox" id="editEnableTaskScraper">启用刮削</label>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="editVideoType">视频类型</label>
-                    <select id="editVideoType" style="width: 100%;">
-                        <option value="">自动识别</option>
-                        <option value="movie">电影</option>
-                        <option value="tv">剧集 / 动漫 / 纪录片</option>
-                    </select>
-                    <small class="form-text">选择视频类型后，重命名将使用对应的命名模板。</small>
                 </div>
             </div>
             <div class="form-actions">
