@@ -428,6 +428,10 @@ function initTaskForm() {
         input.addEventListener('blur', debouncedHandleShare);
     });
 
+    document.getElementById('taskName').addEventListener('input', () => {
+        if (typeof autoDetectVideoType === 'function') autoDetectVideoType();
+    });
+
     // 修改原有的表单提交处理
     document.getElementById('taskForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -485,6 +489,7 @@ function initTaskForm() {
             const { lastTargetFolderId, lastTargetFolderName } = JSON.parse(lastTargetFolder);
             document.getElementById('targetFolderId').value = lastTargetFolderId;
             document.getElementById('targetFolder').value = lastTargetFolderName; 
+            if (typeof autoDetectVideoType === 'function') autoDetectVideoType();
         }else{
             document.getElementById('targetFolderId').value = '';
             document.getElementById('targetFolder').value = '';
@@ -1254,6 +1259,41 @@ async function generateStrm() {
 }
 
 // 解析分享链接获取分享目录组合
+function autoDetectVideoType(taskNameStr = null) {
+    const videoTypeSelect = document.getElementById('videoType');
+    if (!videoTypeSelect) return;
+    // 如果用户已经手动选择了非自动识别，不覆盖
+    if (videoTypeSelect.value && videoTypeSelect.value !== '') return;
+
+    let taskName = taskNameStr !== null ? taskNameStr : (document.getElementById('taskName')?.value || '');
+    const targetFolder = document.getElementById('targetFolder')?.value || '';
+    
+    // 如果名字和目录都为空，没办法识别
+    if (!taskName && !targetFolder) return;
+    
+    let isTv = false;
+    let isMovie = false;
+    
+    // 根据目录判断
+    if (targetFolder.includes('剧集') || targetFolder.includes('动漫') || targetFolder.includes('连续剧') || targetFolder.includes('纪录片') || targetFolder.includes('TV')) {
+        isTv = true;
+    } else if (targetFolder.includes('电影') || /movie/i.test(targetFolder)) {
+        isMovie = true;
+    }
+    
+    // 根据名称判断
+    if (!isTv && !isMovie) {
+         if (/S\d{1,2}/i.test(taskName) || /第.*?[季集话]/.test(taskName) || /Season/i.test(taskName) || /EP\d+/i.test(taskName)) {
+             isTv = true;
+         } else if (taskName.includes('电影')) {
+             isMovie = true;
+         }
+    }
+    
+    if (isTv) videoTypeSelect.value = 'tv';
+    if (isMovie) videoTypeSelect.value = 'movie';
+}
+
 async function parseShareLink() {
     const shareParseError = document.getElementById('shareParseError');
     shareParseError.textContent = ''; // 清除之前的错误信息
@@ -1294,9 +1334,14 @@ async function parseShareLink() {
              // 如果有分享目录数据，使用第一个目录名称作为任务名称
             if (data.data && data.data.length > 0) {
                 const taskName = document.getElementById('taskName')
-                taskName.value = data.data[0].name;
+                const rawName = data.data[0].name;
+                // 默认屏蔽名称中带有年份的那部分，比如中英文的括号里面写的年份
+                const cleanedName = rawName.replace(/[\[\({【]?(19|20)\d{2}[\]\)}】]?/g, '').trim();
+                taskName.value = cleanedName;
                 // 移除taskName的只读
                 taskName.readOnly = false;
+                
+                autoDetectVideoType(cleanedName);
             }
         } else {
             shareFoldersGroup.style.display = 'none';
