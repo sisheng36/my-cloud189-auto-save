@@ -445,14 +445,12 @@ class Cloud189Service {
             parentFolderId: String(parentFolderId),
             fileName: encodeURIComponent(fileName),
             fileSize: String(fileSize),
-            sliceSize: String(sliceSize)
+            sliceSize: String(sliceSize),
+            lazyCheck: '1'
         };
-        if (fileMd5 && sliceMd5) {
-            params.fileMd5 = String(fileMd5);
-            params.sliceMd5 = String(sliceMd5);
-        } else {
-            params.lazyCheck = '1';
-        }
+        // 故意不传 fileMd5 和 sliceMd5，强制使用 lazyCheck=1
+        // 从而规避天翼云盘在 init 阶段如果上报命中黑名单的 md5，会导致后续 commitMultiUpload 稳定返回 InfoSecurityErrorCode 403 错误。
+        // （这正是油猴脚本能成功秒传违规文件的原因）
         const uri = '/person/initMultiUpload';
         const { url, headers } = UploadCryptoUtils.buildUploadRequest(params, uri, rsaKey, sessionKey);
 
@@ -516,6 +514,13 @@ class Cloud189Service {
         } catch (error) {
             const respBody = error?.response?.body || '';
             const statusCode = error?.response?.statusCode || '';
+
+            if (statusCode === 403 && typeof respBody === 'string' && (respBody.includes('black list') || respBody.includes('InfoSecurityErrorCode'))) {
+                const err = new Error('由于版权或违规文件已被云盘黑名单拦截');
+                err.isBlacklisted = true;
+                throw err;
+            }
+
             const respHeaders = error?.response?.headers || {};
             // 403 时输出更多调试信息
             const debugInfo = statusCode === 403
@@ -580,6 +585,9 @@ class Cloud189Service {
                     commitResult = await this.commitMultiUpload(uploadFileId, fileMd5, sliceMd5);
                     break; // 成功则跳出
                 } catch (error) {
+                    if (error.isBlacklisted) {
+                        throw error;
+                    }
                     retryCount++;
                     if (error.message && error.message.includes('403') && retryCount < maxRetries) {
                         const delay = retryCount * 2000; // 2s, 4s, 6s 递增延迟
