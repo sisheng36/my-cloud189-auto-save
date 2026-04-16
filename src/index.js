@@ -1044,6 +1044,81 @@ AppDataSource.initialize().then(async () => {
         }
     })
 
+    // OpenAI 测试与模型获取 API
+    app.post('/api/openai/test', async (req, res) => {
+        try {
+            const { baseUrl, apiKey, model } = req.body;
+            if (!apiKey) throw new Error('API Key不能为空');
+            
+            // 构建测试请求参数 (采用极轻量的内容探测)
+            const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+            
+            const fetchReq = require('node-fetch'); // 使用现有的 node-fetch
+            const response = await fetchReq(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: model || 'gpt-3.5-turbo',
+                    messages: [{ role: 'user', content: 'Connection test. Reply exactly with "OK".' }],
+                    max_tokens: 5
+                }),
+                timeout: 10000 // 10秒超时
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`请求失败 (HTTP ${response.status}): ${errText}`);
+            }
+
+            const data = await response.json();
+            if (data && data.choices && data.choices.length > 0) {
+                return res.json({ success: true, data: data.choices[0].message.content });
+            } else {
+                throw new Error(`响应格式异常: ${JSON.stringify(data)}`);
+            }
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
+    app.post('/api/openai/models', async (req, res) => {
+        try {
+            const { baseUrl, apiKey } = req.body;
+            if (!apiKey) throw new Error('API Key不能为空');
+            
+            const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`;
+            
+            const fetchReq = require('node-fetch');
+            const response = await fetchReq(targetUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                timeout: 10000 // 10秒超时
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`请求失败 (HTTP ${response.status}): ${errText}`);
+            }
+
+            const data = await response.json();
+            if (data && data.data && Array.isArray(data.data)) {
+                // OpenAI API 的 models 端点通常返回 { object: 'list', data: [ { id: 'gpt-4', ... } ] }
+                const models = data.data.map(item => ({ id: item.id })).sort((a, b) => a.id.localeCompare(b.id));
+                return res.json({ success: true, data: models });
+            } else {
+                throw new Error(`未获取到有效的模型列表: ${JSON.stringify(data)}`);
+            }
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
     app.post('/api/custom-push/test', async (req, res) => {
         try{
             const configTest = req.body
