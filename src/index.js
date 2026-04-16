@@ -800,6 +800,7 @@ AppDataSource.initialize().then(async () => {
         if (!task) {
             throw new Error('任务不存在');
         }
+        logTaskEvent(`[批量重命名] 获取用户确认，开始对 ${files.length} 个文件执行天翼云远端重命名...`);
         // 从realFolderName中获取文件夹名称 删除对应的本地文件
         const folderName = task.realFolderName.substring(task.realFolderName.indexOf('/') + 1);
         const strmService = new StrmService();
@@ -817,11 +818,14 @@ AppDataSource.initialize().then(async () => {
         for (const file of files) {
             const renameResult = await cloud189.renameFile(file.fileId, file.destFileName);
             if (!renameResult) {
+                logTaskEvent(`[批量重命名] 接口异常导致失败`);
                 throw new Error('重命名失败');
             }
             if (renameResult.res_code != 0) {
+                logTaskEvent(`[批量重命名] 原文件 ${file.oldName} 失败: ${renameResult.res_msg}`);
                 result.push(`文件${file.destFileName} ${renameResult.res_msg}`)
             }else{
+                logTaskEvent(`[批量重命名] 成功: ${file.oldName} => ${file.destFileName}`);
                 if (strmEnabled){
                     // 从realFolderName中获取文件夹名称 删除对应的本地文件
                     const oldFile = path.join(folderName, file.oldName);
@@ -830,6 +834,7 @@ AppDataSource.initialize().then(async () => {
                 successFiles.push({id: file.fileId, name: file.destFileName})
             }
         }
+        logTaskEvent(`[批量重命名] 对选中的文件重命名请求执行完成。成功: ${successFiles.length}，失败: ${result.length}`);
         // 重新生成STRM文件
         if (strmEnabled){
             strmService.generate(task, successFiles, false, false)
@@ -1022,6 +1027,8 @@ AppDataSource.initialize().then(async () => {
             if (!task) {
                 throw new Error('任务不存在');
             }
+            
+            logTaskEvent(`[批量重命名] 开始对任务 [${task.resourceName}] 选中的 ${files.length} 个文件使用 AI 分析和重命名建议...`);
             // 开始ai分析
             const resourceInfo = await taskService._analyzeResourceInfo(
                 task.resourceName,
@@ -1029,11 +1036,86 @@ AppDataSource.initialize().then(async () => {
                 'file',
                 task
             )
-            return res.json({ success: true, data: await taskService.handleAiRename(files, resourceInfo) });
+            const renamePreviewResult = await taskService.handleAiRename(files, resourceInfo);
+            logTaskEvent(`[批量重命名] AI 分析完成，生成了 ${renamePreviewResult.length} 条有效建议，等待用户确认`);
+            return res.json({ success: true, data: renamePreviewResult });
         } catch (error) {
             res.json({ success: false, error: error.message });
         }
     })
+
+    // OpenAI 测试与模型获取 API
+    app.post('/api/openai/test', async (req, res) => {
+        try {
+            const { baseUrl, apiKey, model } = req.body;
+            if (!apiKey) throw new Error('API Key不能为空');
+            
+            // 构建测试请求参数 (采用极轻量的内容探测)
+            const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
+            
+            const got = require('got');
+            const response = await got.post(targetUrl, {
+                json: {
+                    model: model || 'gpt-3.5-turbo',
+                    messages: [{ role: 'user', content: 'Connection test. Reply exactly with "OK".' }],
+                    max_tokens: 5
+                },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                responseType: 'json',
+                timeout: 10000 // 10秒超时
+            });
+
+            const data = response.body;
+            if (data && data.choices && data.choices.length > 0) {
+                return res.json({ success: true, data: data.choices[0].message.content });
+            } else {
+                throw new Error(`响应格式异常: ${JSON.stringify(data)}`);
+            }
+        } catch (error) {
+            let errorDetails = error.message;
+            if (error.response && error.response.body) {
+                 errorDetails += ` : ${JSON.stringify(error.response.body)}`;
+            }
+            res.json({ success: false, error: errorDetails });
+        }
+    });
+
+    app.post('/api/openai/models', async (req, res) => {
+        try {
+            const { baseUrl, apiKey } = req.body;
+            if (!apiKey) throw new Error('API Key不能为空');
+            
+            const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`;
+            
+            const got = require('got');
+            const response = await got.get(targetUrl, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                responseType: 'json',
+                timeout: 10000 // 10秒超时
+            });
+
+            const data = response.body;
+            if (data && data.data && Array.isArray(data.data)) {
+                // OpenAI API 的 models 端点通常返回 { object: 'list', data: [ { id: 'gpt-4', ... } ] }
+                const models = data.data.map(item => ({ id: item.id })).sort((a, b) => a.id.localeCompare(b.id));
+                return res.json({ success: true, data: models });
+            } else {
+                throw new Error(`未获取到有效的模型列表: ${JSON.stringify(data)}`);
+            }
+        } catch (error) {
+            let errorDetails = error.message;
+            if (error.response && error.response.body) {
+                 errorDetails += ` : ${JSON.stringify(error.response.body)}`;
+            }
+            res.json({ success: false, error: errorDetails });
+        }
+    });
 
     app.post('/api/custom-push/test', async (req, res) => {
         try{

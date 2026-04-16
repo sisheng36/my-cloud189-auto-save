@@ -570,6 +570,10 @@
                             <input type="text" id="openaiApiKey" placeholder="API Key">
                             <label for="openaiModel">模型名称</label>
                             <input type="text" id="openaiModel" placeholder="模型名称">
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button type="button" class="btn-default" onclick="testOpenAIConnection()" style="margin-top: 0; padding: 6px 12px; height: 32px; flex: 1;">测试连接</button>
+                                <button type="button" class="btn-default" onclick="getOpenAIModels()" style="margin-top: 0; padding: 6px 12px; height: 32px; flex: 1;">获取模型列表</button>
+                            </div>
                             <label for="openaiTemplate">剧集命名模版</label>
                             <input type="text" id="openaiTemplate" placeholder="文件名模板">
                             <label for="openaiMovieTemplate">电影命名模版</label>
@@ -721,6 +725,28 @@
             </div>
             <div class="form-actions">
                 <button type="button" class="btn-default" onclick="closeManualTmdbModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenAI模型选择模态框 -->
+    <div id="openaiModelsModal" class="modal" style="z-index: 1200;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>选择模型</h3>
+            </div>
+            <div class="form-body">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <input type="text" id="openaiModelSearch" placeholder="搜索模型名称..." onkeyup="filterOpenAIModels()" style="width: 100%;">
+                </div>
+                <div class="form-group">
+                    <div id="openaiModelsList" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px;">
+                        <!-- 结果列表 -->
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn-default" onclick="closeOpenAIModelsModal()">关闭</button>
             </div>
         </div>
     </div>

@@ -19,6 +19,17 @@ class FolderSelector {
             validateResponse: options.validateResponse || ((data) => data.success) // 验证响应数据
         };
 
+        if (!options.parseResponse) {
+            this.apiConfig.parseResponse = (response) => {
+                const data = response.data || [];
+                return data.map(item => ({
+                    id: item.id || item.fileId,
+                    name: item.name || item.fileName,
+                    isFile: item.isFile || false
+                }));
+            };
+        }
+
 
         this.buttons = options.buttons || [
             {
@@ -331,7 +342,7 @@ class FolderSelector {
         // 向上遍历DOM树获取完整路径
         while (current && !current.classList.contains('folder-tree')) {
             if (current.classList.contains('folder-tree-item')) {
-                const nameElement = current.querySelector('.folder-name');
+                const nameElement = current.querySelector(':scope > .folder-name');
                 if (nameElement) {
                     this.currentPath.unshift(nameElement.textContent);
                 }

@@ -871,6 +871,12 @@ class TaskService {
                                         casResults.push({ fileName: realFileName, success: true });
                                         logTaskEvent(`[CAS秒传] 成功: ${casFile.name} → ${realFileName}`);
                                         currentFileNames.add(realFileName);
+                                        newFiles.push({
+                                            id: result.userFileId || casFile.id,
+                                            name: realFileName,
+                                            isFolder: false,
+                                            md5: parsed.md5.toUpperCase()
+                                        });
                                     } else {
                                         casResults.push({ fileName: realFileName, success: false, reason: result.message });
                                         logTaskEvent(`[CAS秒传] 失败: ${casFile.name} → ${realFileName}: ${result.message}`);

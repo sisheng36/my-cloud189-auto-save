@@ -742,6 +742,7 @@ async function previewRename(autoUpdate = false) {
 function showRenamePreview(newNames, autoUpdate) {
     const modal = document.createElement('div');
     modal.className = 'modal preview-rename-modal';
+    modal.style.zIndex = '1010';
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
