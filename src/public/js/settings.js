@@ -20,6 +20,9 @@ async function loadSettings() {
             document.getElementById('enableAutoCreateFolder').checked = settings.task?.enableAutoCreateFolder || false;
             document.getElementById('enableCasRapidUpload').checked = settings.task?.enableCasRapidUpload ?? true;
             document.getElementById('enableDeleteCasFile').checked = settings.task?.enableDeleteCasFile ?? true;
+            document.getElementById('enableCasFamilyTransfer').checked = settings.task?.enableCasFamilyTransfer ?? true;
+            document.getElementById('casFamilyFolderId').value = settings.task?.casFamilyFolderId || '';
+            document.getElementById('enableDeleteFamilyTempFile').checked = settings.task?.enableDeleteFamilyTempFile || false;
 
             // 企业微信设置
             document.getElementById('enableWecom').checked = settings.wecom?.enable || false;
@@ -129,7 +132,10 @@ async function saveSettings() {
             enableOnlySaveMedia: document.getElementById('enableOnlySaveMedia').checked,
             enableAutoCreateFolder: document.getElementById('enableAutoCreateFolder').checked,
             enableCasRapidUpload: document.getElementById('enableCasRapidUpload').checked,
-            enableDeleteCasFile: document.getElementById('enableDeleteCasFile').checked
+            enableDeleteCasFile: document.getElementById('enableDeleteCasFile').checked,
+            enableCasFamilyTransfer: document.getElementById('enableCasFamilyTransfer').checked,
+            casFamilyFolderId: document.getElementById('casFamilyFolderId').value.trim(),
+            enableDeleteFamilyTempFile: document.getElementById('enableDeleteFamilyTempFile').checked
         },
         wecom: {
             enable: document.getElementById('enableWecom').checked,
@@ -224,3 +230,62 @@ function generateApiKey() {
     }
     document.getElementById('systemApiKey').value = apiKey;
 }
+
+// -----------------------------------------------------
+// CAS 家庭目录选择器逻辑
+// -----------------------------------------------------
+let casFamilyFolderSelector = null;
+
+async function initFamilyFolderSelector() {
+    if (casFamilyFolderSelector) return casFamilyFolderSelector;
+
+    casFamilyFolderSelector = new FolderSelector({
+        title: '选择家庭空间中转目录',
+        apiUrl: '/api/family/folders',
+        enableFavorites: false, // 家庭选择暂不支持常用目录
+        onSelect: (node) => {
+            if (node) {
+                document.getElementById('casFamilyFolderId').value = node.id;
+            }
+        }
+    });
+
+    return casFamilyFolderSelector;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 浏览按钮
+    const browseBtn = document.getElementById('browseFamilyFolderBtn');
+    if (browseBtn) {
+        browseBtn.addEventListener('click', async () => {
+            try {
+                // 获取当前账号列表找一个可用的账号去拉取家庭信息
+                const response = await fetch('/api/accounts');
+                const data = await response.json();
+                if (!data.success || !data.data || data.data.length === 0) {
+                    message.warning('请先配置天翼云盘账号');
+                    return;
+                }
+                // 优先使用默认账号，或者第一个非 n_ 打头账号
+                let account = data.data.find(a => a.isDefault && !a.username.startsWith('n_')) || 
+                              data.data.find(a => !a.username.startsWith('n_')) || 
+                              data.data[0];
+
+                const selector = await initFamilyFolderSelector();
+                selector.show(account.id);
+            } catch (error) {
+                console.error(error);
+                message.warning('无法打开目录选择器');
+            }
+        });
+    }
+
+    // 清空按钮
+    const clearBtn = document.getElementById('clearFamilyFolderBtn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            document.getElementById('casFamilyFolderId').value = '';
+            message.success('已重置为家庭根目录');
+        });
+    }
+});

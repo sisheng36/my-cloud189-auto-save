@@ -700,6 +700,23 @@ AppDataSource.initialize().then(async () => {
         }
     });
 
+    // 获取家庭空间目录树（供CAS中转目录选择）
+    app.get('/api/family/folders/:accountId', async (req, res) => {
+        try {
+            const accountId = parseInt(req.params.accountId);
+            const folderId = req.query.folderId || '';
+            const account = await accountRepo.findOneBy({ id: accountId });
+            if (!account) throw new Error('账号不存在');
+            const cloud189 = Cloud189Service.getInstance(account);
+            const familyInfo = await cloud189.getFamilyInfo();
+            if (!familyInfo) throw new Error('当前账号无家庭空间主账号');
+            const folders = await cloud189.listFamilyFolderNodes(familyInfo.familyId, folderId);
+            res.json({ success: true, data: folders, familyId: familyInfo.familyId });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
+    });
+
     // 根据分享链接获取文件目录
     app.get('/api/share/folders/:accountId', async (req, res) => {
         try {
