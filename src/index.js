@@ -1053,33 +1053,33 @@ AppDataSource.initialize().then(async () => {
             // 构建测试请求参数 (采用极轻量的内容探测)
             const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}chat/completions` : `${baseUrl}/chat/completions`;
             
-            const response = await fetch(targetUrl, {
-                method: 'POST',
+            const got = require('got');
+            const response = await got.post(targetUrl, {
+                json: {
+                    model: model || 'gpt-3.5-turbo',
+                    messages: [{ role: 'user', content: 'Connection test. Reply exactly with "OK".' }],
+                    max_tokens: 5
+                },
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
                 },
-                body: JSON.stringify({
-                    model: model || 'gpt-3.5-turbo',
-                    messages: [{ role: 'user', content: 'Connection test. Reply exactly with "OK".' }],
-                    max_tokens: 5
-                }),
+                responseType: 'json',
                 timeout: 10000 // 10秒超时
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`请求失败 (HTTP ${response.status}): ${errText}`);
-            }
-
-            const data = await response.json();
+            const data = response.body;
             if (data && data.choices && data.choices.length > 0) {
                 return res.json({ success: true, data: data.choices[0].message.content });
             } else {
                 throw new Error(`响应格式异常: ${JSON.stringify(data)}`);
             }
         } catch (error) {
-            res.json({ success: false, error: error.message });
+            let errorDetails = error.message;
+            if (error.response && error.response.body) {
+                 errorDetails += ` : ${JSON.stringify(error.response.body)}`;
+            }
+            res.json({ success: false, error: errorDetails });
         }
     });
 
@@ -1090,21 +1090,17 @@ AppDataSource.initialize().then(async () => {
             
             const targetUrl = baseUrl.endsWith('/') ? `${baseUrl}models` : `${baseUrl}/models`;
             
-            const response = await fetch(targetUrl, {
-                method: 'GET',
+            const got = require('got');
+            const response = await got.get(targetUrl, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
                 },
+                responseType: 'json',
                 timeout: 10000 // 10秒超时
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`请求失败 (HTTP ${response.status}): ${errText}`);
-            }
-
-            const data = await response.json();
+            const data = response.body;
             if (data && data.data && Array.isArray(data.data)) {
                 // OpenAI API 的 models 端点通常返回 { object: 'list', data: [ { id: 'gpt-4', ... } ] }
                 const models = data.data.map(item => ({ id: item.id })).sort((a, b) => a.id.localeCompare(b.id));
@@ -1113,7 +1109,11 @@ AppDataSource.initialize().then(async () => {
                 throw new Error(`未获取到有效的模型列表: ${JSON.stringify(data)}`);
             }
         } catch (error) {
-            res.json({ success: false, error: error.message });
+            let errorDetails = error.message;
+            if (error.response && error.response.body) {
+                 errorDetails += ` : ${JSON.stringify(error.response.body)}`;
+            }
+            res.json({ success: false, error: errorDetails });
         }
     });
 
