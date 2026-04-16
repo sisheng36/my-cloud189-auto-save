@@ -408,6 +408,20 @@
                             </label>
                             <small class="form-text">当天翼云盘中任务更新目录不存在的时候, 自动创建文件夹, 仅会创建最后一级文件夹</small>
                         </div>
+                        <div class="push-item">
+                            <label>
+                                <input type="checkbox" id="enableCasRapidUpload">
+                                启用 CAS 秒传
+                            </label>
+                            <small class="form-text">自动扫描分享目录中的 .cas 文件，解析其中的秒传指纹信息，通过秒传方式将真实视频转存到目标目录（需云端已有相同文件）</small>
+                        </div>
+                        <div class="push-item">
+                            <label>
+                                <input type="checkbox" id="enableDeleteCasFile">
+                                处理后删除 .cas 文件
+                            </label>
+                            <small class="form-text">秒传完成后自动删除已处理的 .cas 文件；关闭则保留 .cas 文件，可用于后续播放器直接播放</small>
+                        </div>
                     </div>
                 </div>
 

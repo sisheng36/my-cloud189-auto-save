@@ -3,6 +3,8 @@ const { logTaskEvent } = require('../utils/logUtils');
 const crypto = require('crypto');
 const got = require('got');
 const ProxyUtil = require('../utils/ProxyUtil');
+const UploadCryptoUtils = require('../utils/UploadCryptoUtils');
+const CasUtils = require('../utils/CasUtils');
 class Cloud189Service {
     static instances = new Map();
 
@@ -329,6 +331,361 @@ class Cloud189Service {
                 message: error.message || '登录失败'
             }
         }
+    }
+
+    // ============== CAS 秒传相关方法 ==============
+
+    // 获取 SessionKey（用于上传签名）
+    // 参照 OpenList-CAS: 调用 /v2/getUserBriefInfo.action 从 JSON 响应体获取 sessionKey
+    async _getSessionKey() {
+        // 优先使用缓存的 sessionKey
+        if (this._sessionKey) return this._sessionKey;
+
+        // 方案1: 通过 SDK 的 request 方法调用 API（会自动携带认证信息）
+        try {
+            const result = await this.request('/v2/getUserBriefInfo.action', {
+                method: 'GET',
+                searchParams: {}
+            });
+            if (result && result.sessionKey) {
+                this._sessionKey = result.sessionKey;
+                return this._sessionKey;
+            }
+        } catch (e) {
+            logTaskEvent('通过 /v2/getUserBriefInfo.action 获取SessionKey失败: ' + e.message);
+        }
+
+        // 方案2: 尝试从 getUserSizeInfo 响应头获取（油猴脚本的方式）
+        try {
+            const noCache = Math.random().toString();
+            const resp = await this.client.request(
+                `https://cloud.189.cn/api/portal/getUserSizeInfo.action?noCache=${noCache}`,
+                { method: 'GET', headers: { 'Accept': 'application/json;charset=UTF-8' } }
+            );
+            const sk = resp?.headers?.['sessionkey'] || resp?.headers?.['SessionKey'] || '';
+            if (sk) {
+                this._sessionKey = sk;
+                return sk;
+            }
+        } catch (e) {
+            logTaskEvent('通过响应头获取SessionKey失败: ' + e.message);
+        }
+
+        // 方案3: 回退 - 直接用 got 请求
+        try {
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            const headers = await this._buildAuthHeaders();
+            const options = { headers, followRedirect: true };
+            if (proxyUrl) {
+                const { HttpsProxyAgent } = require('https-proxy-agent');
+                options.agent = { https: new HttpsProxyAgent(proxyUrl) };
+            }
+            // 先尝试 getUserBriefInfo
+            const resp1 = await got('https://cloud.189.cn/v2/getUserBriefInfo.action', options);
+            const body1 = JSON.parse(resp1.body);
+            if (body1?.sessionKey) {
+                this._sessionKey = body1.sessionKey;
+                return this._sessionKey;
+            }
+            // 再尝试从响应头获取
+            const sk = resp1.headers['sessionkey'] || resp1.headers['SessionKey'] || '';
+            if (sk) {
+                this._sessionKey = sk;
+                return sk;
+            }
+        } catch (e) {
+            logTaskEvent('回退获取SessionKey失败: ' + e.message);
+        }
+
+        // 方案4: 最终回退 - 尝试从 tokenStore 读取
+        try {
+            const token = this.client.tokenStore?.load?.();
+            if (token?.sessionKey) return token.sessionKey;
+            if (token?.accessToken) return token.accessToken;
+        } catch (e) {}
+        return '';
+    }
+
+    // 构建认证请求头（备用，不依赖SDK）
+    async _buildAuthHeaders() {
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json;charset=UTF-8'
+        };
+        try {
+            const token = this.client.tokenStore?.load?.();
+            if (token?.accessToken) {
+                headers['Cookie'] = `SESSION_KEY=${token.accessToken}`;
+            }
+        } catch (e) {}
+        return headers;
+    }
+
+    // 获取 RSA 公钥（缓存5分钟）
+    async _getRsaKey() {
+        const now = Date.now();
+        if (this._rsaKey && this._rsaKey.expire > now) {
+            return this._rsaKey;
+        }
+        try {
+            const sessionKey = await this._getSessionKey();
+            this._rsaKey = await UploadCryptoUtils.generateRsaKey(sessionKey);
+            return this._rsaKey;
+        } catch (error) {
+            logTaskEvent('获取RSA公钥失败: ' + error.message);
+            throw error;
+        }
+    }
+
+    // 初始化多文件上传（秒传第一步）
+    async initMultiUpload(parentFolderId, fileName, fileSize, sliceSize, fileMd5, sliceMd5) {
+        const rsaKey = await this._getRsaKey();
+        const sessionKey = await this._getSessionKey();
+        const params = {
+            parentFolderId,
+            fileName: encodeURIComponent(fileName),
+            fileSize,
+            sliceSize
+        };
+        if (fileMd5 && sliceMd5) {
+            params.fileMd5 = fileMd5;
+            params.sliceMd5 = sliceMd5;
+        } else {
+            params.lazyCheck = '1';
+        }
+        const uri = '/person/initMultiUpload';
+        const { url, headers } = UploadCryptoUtils.buildUploadRequest(params, uri, rsaKey, sessionKey);
+
+        try {
+            const got = require('got');
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            const options = { headers };
+            if (proxyUrl) {
+                const { HttpsProxyAgent } = require('https-proxy-agent');
+                options.agent = { https: new HttpsProxyAgent(proxyUrl) };
+            }
+            return await got(url, options).json();
+        } catch (error) {
+            logTaskEvent('initMultiUpload 失败: ' + error.message);
+            throw error;
+        }
+    }
+
+    // 检查秒传（秒传第二步 - 核心步骤）
+    async checkTransSecond(fileMd5, sliceMd5, uploadFileId) {
+        const rsaKey = await this._getRsaKey();
+        const sessionKey = await this._getSessionKey();
+        const params = { fileMd5, sliceMd5, uploadFileId };
+        const uri = '/person/checkTransSecond';
+        const { url, headers } = UploadCryptoUtils.buildUploadRequest(params, uri, rsaKey, sessionKey);
+
+        try {
+            const got = require('got');
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            const options = { headers };
+            if (proxyUrl) {
+                const { HttpsProxyAgent } = require('https-proxy-agent');
+                options.agent = { https: new HttpsProxyAgent(proxyUrl) };
+            }
+            return await got(url, options).json();
+        } catch (error) {
+            logTaskEvent('checkTransSecond 失败: ' + error.message);
+            throw error;
+        }
+    }
+
+    // 提交秒传（秒传第三步）
+    async commitMultiUpload(uploadFileId, fileMd5, sliceMd5) {
+        const rsaKey = await this._getRsaKey();
+        const sessionKey = await this._getSessionKey();
+        const params = { uploadFileId, fileMd5, sliceMd5, lazyCheck: 1, opertype: '3' };
+        const uri = '/person/commitMultiUploadFile';
+        const { url, headers } = UploadCryptoUtils.buildUploadRequest(params, uri, rsaKey, sessionKey);
+
+        try {
+            const got = require('got');
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            const options = { headers };
+            if (proxyUrl) {
+                const { HttpsProxyAgent } = require('https-proxy-agent');
+                options.agent = { https: new HttpsProxyAgent(proxyUrl) };
+            }
+            return await got(url, options).json();
+        } catch (error) {
+            logTaskEvent('commitMultiUpload 失败: ' + error.message);
+            throw error;
+        }
+    }
+
+    // 秒传主方法：通过 CAS 信息进行秒传
+    // 流程参考 OpenList-CAS: initMultiUpload → (可选 checkTransSecond) → commitMultiUploadFile
+    async rapidUpload(fileName, fileSize, fileMd5, sliceMd5, parentFolderId) {
+        try {
+            const sliceSize = this._partSize(fileSize);
+            logTaskEvent(`[CAS秒传] 开始: ${fileName}, 大小: ${fileSize}, MD5: ${fileMd5}`);
+
+            // 第1步: 初始化分片上传
+            const initResult = await this.initMultiUpload(parentFolderId, fileName, fileSize, sliceSize, fileMd5, sliceMd5);
+            if (initResult.errorCode) {
+                throw new Error(initResult.errorMsg || initResult.errorCode);
+            }
+
+            const uploadFileId = initResult.data?.uploadFileId;
+            if (!uploadFileId) {
+                throw new Error('初始化上传失败: 缺少 uploadFileId');
+            }
+
+            // 检查 initMultiUpload 返回的 fileDataExists
+            // 如果 fileDataExists == 1，说明云端已有该文件数据，可以直接 commit
+            const fileDataExistsFromInit = initResult.data?.fileDataExists;
+            if (fileDataExistsFromInit == null || fileDataExistsFromInit == 0) {
+                // 第2步: 需要单独检查秒传
+                const checkResult = await this.checkTransSecond(fileMd5, sliceMd5, uploadFileId);
+                if (checkResult.errorCode) {
+                    throw new Error(checkResult.errorMsg || checkResult.errorCode);
+                }
+                const fileDataExists = checkResult.data?.fileDataExists;
+                if (fileDataExists != 1) {
+                    throw new Error('文件不存在于云端，无法秒传');
+                }
+            }
+
+            // 第3步: 提交上传
+            const commitResult = await this.commitMultiUpload(uploadFileId, fileMd5, sliceMd5);
+            if (commitResult.errorCode) {
+                throw new Error(commitResult.errorMsg || commitResult.errorCode);
+            }
+
+            const uploadedFileId = commitResult.file?.userFileId || commitResult.file?.id || commitResult.data?.fileId || null;
+            logTaskEvent(`[CAS秒传] 成功: ${fileName}`);
+            return { success: true, userFileId: uploadedFileId, message: '秒传成功' };
+        } catch (error) {
+            logTaskEvent(`[CAS秒传] 失败: ${fileName} - ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 计算分片大小
+    _partSize(fileSize) {
+        const D = 10485760; // 10MB
+        if (fileSize > D * 2 * 999) return Math.max(Math.ceil(fileSize / 1999 / D), 5) * D;
+        if (fileSize > D * 999) return D * 2;
+        return D;
+    }
+
+    // 删除文件（移到回收站）
+    async deleteFile(fileId, fileName = '') {
+        try {
+            const result = await this.request('/api/open/batch/createBatchTask.action', {
+                method: 'POST',
+                form: {
+                    type: 'DELETE',
+                    taskInfos: JSON.stringify([{ fileId: String(fileId), fileName, isFolder: 0 }]),
+                    targetFolderId: ''
+                }
+            });
+            return result;
+        } catch (error) {
+            logTaskEvent(`删除文件失败(fileId=${fileId}): ${error.message}`);
+            throw error;
+        }
+    }
+
+    // 下载文件内容（用于下载 CAS 文件文本）
+    async downloadFileContent(fileId) {
+        try {
+            // 获取文件下载链接
+            const response = await this.request('/api/open/file/getFileDownloadUrl.action', {
+                method: 'GET',
+                searchParams: {
+                    fileId,
+                    type: 1
+                }
+            });
+            if (!response || !response.fileDownloadUrl) {
+                throw new Error(response?.res_msg || '获取下载链接失败');
+            }
+            const downloadUrl = response.fileDownloadUrl.replace(/&amp;/g, '&');
+            // 下载文件内容
+            const content = await got(downloadUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            }).text();
+            return content;
+        } catch (error) {
+            logTaskEvent(`下载文件内容失败(fileId=${fileId}): ${error.message}`);
+            throw error;
+        }
+    }
+
+    // 获取目录下的所有文件（支持翻页）
+    async listAllFiles(folderId) {
+        let allFiles = [];
+        let pageNum = 1;
+        const pageSize = 200;
+
+        while (true) {
+            const result = await this.request('/api/open/file/listFiles.action', {
+                method: 'GET',
+                searchParams: {
+                    folderId,
+                    mediaType: 0,
+                    orderBy: 'lastOpTime',
+                    descending: true,
+                    pageNum,
+                    pageSize
+                }
+            });
+
+            if (!result || !result.fileListAO) break;
+            const fileList = result.fileListAO.fileList || [];
+            allFiles = allFiles.concat(fileList);
+
+            const totalCount = result.fileListAO.count || 0;
+            if (allFiles.length >= totalCount || fileList.length < pageSize) break;
+            pageNum++;
+        }
+
+        return allFiles;
+    }
+
+    // 扫描目录中的 CAS 文件并解析
+    async scanCasFiles(folderId) {
+        const allFiles = await this.listAllFiles(folderId);
+        const casFiles = allFiles.filter(f => CasUtils.isCasFile(f.name));
+
+        if (casFiles.length === 0) {
+            return [];
+        }
+
+        const results = [];
+        for (const casFile of casFiles) {
+            try {
+                const content = await this.downloadFileContent(casFile.id);
+                const parsed = CasUtils.parseCasContent(content);
+
+                if (parsed && parsed.md5 && parsed.slice_md5) {
+                    const realFileName = CasUtils.mergeCasFileName(casFile.name, parsed.name);
+                    results.push({
+                        md5: parsed.md5.toUpperCase(),
+                        slice_md5: parsed.slice_md5.toUpperCase(),
+                        size: parseInt(parsed.size),
+                        name: realFileName,
+                        casFileName: casFile.name,
+                        casFileId: casFile.id
+                    });
+                } else {
+                    logTaskEvent(`[CAS] ${casFile.name} 解析失败: 缺少 md5 或 slice_md5`);
+                }
+            } catch (error) {
+                logTaskEvent(`[CAS] ${casFile.name} 下载失败: ${error.message}`);
+            }
+            // 延迟避免请求过快
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        return results;
     }
 }
 

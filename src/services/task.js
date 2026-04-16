@@ -18,6 +18,7 @@ const { TMDBService } = require('./tmdb');
 const harmonizedFilter = require('../utils/BloomFilter');
 const cloud189Utils = require('../utils/Cloud189Utils');
 const alistService = require('./alistService');
+const CasUtils = require('../utils/CasUtils');
 
 class TaskService {
     constructor(taskRepo, accountRepo) {
@@ -771,6 +772,10 @@ class TaskService {
                 }
             }
             
+            const enableCasRapidUpload = ConfigService.getConfigValue('task.enableCasRapidUpload');
+            const enableDeleteCasFile = ConfigService.getConfigValue('task.enableDeleteCasFile');
+
+            // 排除 .cas 文件，避免进入常规转存流程
             const newFiles = shareFiles
                 .filter(file => 
                     !file.isFolder && !existingFiles.has(file.md5) 
@@ -778,24 +783,158 @@ class TaskService {
                    && this._checkFileSuffix(file, enableOnlySaveMedia, mediaSuffixs)
                    && (aiFiltered || this._handleMatchMode(task, file))
                    && !this.isHarmonized(file)
+                   && !(enableCasRapidUpload && CasUtils.isCasFile(file.name))
                 );
 
-            // 处理新文件并保存到数据库和云盘
+            // ============== 第1步: 先转存常规视频文件 ==============
+            let fileNameList = [];
+            let fileCount = 0;
             if (newFiles.length > 0) {
-                const { fileNameList, fileCount } = await this._handleNewFiles(task, newFiles, cloud189, mediaSuffixs);
+                const handleResult = await this._handleNewFiles(task, newFiles, cloud189, mediaSuffixs);
+                fileNameList = handleResult.fileNameList;
+                fileCount = handleResult.fileCount;
+            }
+
+            // ============== 第2步: CAS 秒传处理 ==============
+            let casResults = [];
+            if (enableCasRapidUpload) {
+                // 从分享文件中筛选 .cas 文件
+                const allCasFiles = shareFiles.filter(f => !f.isFolder && CasUtils.isCasFile(f.name));
+                // 排除已处理过的
+                const newCasFiles = allCasFiles.filter(f => !cachedFileIds.has(String(f.id)));
+
+                if (newCasFiles.length > 0) {
+                    logTaskEvent(`[CAS] 发现 ${newCasFiles.length} 个 CAS 文件，开始处理...`);
+
+                    // 第2.1步: 先将 .cas 文件转存到目标目录
+                    const casTaskInfoList = newCasFiles.map(f => ({
+                        fileId: f.id,
+                        fileName: f.name,
+                        isFolder: 0,
+                        md5: f.md5,
+                    }));
+                    try {
+                        const casBatchTask = new BatchTaskDto({
+                            taskInfos: JSON.stringify(casTaskInfoList),
+                            type: 'SHARE_SAVE',
+                            targetFolderId: task.realFolderId,
+                            shareId: task.shareId
+                        });
+                        await this.createBatchTask(cloud189, casBatchTask);
+                        logTaskEvent(`[CAS] ${newCasFiles.length} 个 CAS 文件转存完成`);
+                        // 等待转存生效
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } catch (error) {
+                        logTaskEvent(`[CAS] 转存 CAS 文件失败: ${error.message}`);
+                    }
+
+                    // 第2.2步: 从目标目录中找到已转存的 .cas 文件，下载内容并解析
+                    const savedCasFileIds = []; // 记录已转存的 .cas 文件 fileId，用于后续删除
+                    try {
+                        // 刷新目录文件列表（常规转存可能刚加入新文件）
+                        const folderFilesAfter = await this.getAllFolderFiles(cloud189, task);
+                        const currentFileNames = new Set(folderFilesAfter.filter(f => !CasUtils.isCasFile(f.name)).map(f => f.name));
+                        const savedCasFiles = folderFilesAfter.filter(f => CasUtils.isCasFile(f.name));
+
+                        for (const casFile of newCasFiles) {
+                            try {
+                                // 在目标目录中找到同名文件
+                                const savedFile = savedCasFiles.find(f => f.name === casFile.name);
+                                if (!savedFile) {
+                                    logTaskEvent(`[CAS] 转存后未找到: ${casFile.name}`);
+                                    continue;
+                                }
+
+                                // 下载 CAS 文件内容
+                                const content = await cloud189.downloadFileContent(savedFile.id);
+                                const parsed = CasUtils.parseCasContent(content);
+
+                                if (parsed && parsed.md5 && parsed.slice_md5) {
+                                    const realFileName = CasUtils.mergeCasFileName(casFile.name, parsed.name);
+                                    // 检查是否已存在同名文件（先转存的视频优先，秒传后重复则删除秒传文件）
+                                    if (currentFileNames.has(realFileName)) {
+                                        logTaskEvent(`[CAS] ${realFileName} 已存在（常规转存优先），跳过秒传`);
+                                        savedCasFileIds.push(savedFile.id);
+                                        continue;
+                                    }
+                                    // 执行秒传
+                                    const result = await cloud189.rapidUpload(
+                                        realFileName,
+                                        parseInt(parsed.size),
+                                        parsed.md5.toUpperCase(),
+                                        parsed.slice_md5.toUpperCase(),
+                                        task.realFolderId
+                                    );
+                                    if (result.success) {
+                                        casResults.push({ fileName: realFileName, success: true });
+                                        logTaskEvent(`[CAS秒传] 成功: ${casFile.name} → ${realFileName}`);
+                                        currentFileNames.add(realFileName);
+                                    } else {
+                                        casResults.push({ fileName: realFileName, success: false, reason: result.message });
+                                        logTaskEvent(`[CAS秒传] 失败: ${casFile.name} → ${realFileName}: ${result.message}`);
+                                    }
+                                } else {
+                                    logTaskEvent(`[CAS] ${casFile.name} 解析失败: 缺少 md5 或 slice_md5`);
+                                }
+                                // 记录 .cas 文件 ID 以便后续删除
+                                savedCasFileIds.push(savedFile.id);
+                            } catch (error) {
+                                logTaskEvent(`[CAS] ${casFile.name} 处理异常: ${error.message}`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 300));
+                        }
+
+                        // 第2.3步: 根据配置决定是否删除已转存的 .cas 文件
+                        if (enableDeleteCasFile) {
+                            for (const fileId of savedCasFileIds) {
+                                try {
+                                    await cloud189.deleteFile(fileId);
+                                } catch (e) {
+                                    logTaskEvent(`[CAS] 删除 .cas 文件失败(${fileId}): ${e.message}`);
+                                }
+                            }
+                            if (savedCasFileIds.length > 0) {
+                                logTaskEvent(`[CAS] 已清理 ${savedCasFileIds.length} 个 .cas 文件`);
+                            }
+                        } else {
+                            if (savedCasFileIds.length > 0) {
+                                logTaskEvent(`[CAS] 保留 ${savedCasFileIds.length} 个 .cas 文件（未启用删除）`);
+                            }
+                        }
+                    } catch (error) {
+                        logTaskEvent(`[CAS] 处理异常: ${error.message}`);
+                    }
+                }
+                // 将 CAS 文件的 id 加入缓存（无论秒传是否成功，避免重复处理）
+                const casEvaluatedIds = newCasFiles.map(f => String(f.id));
+                if (casEvaluatedIds.length > 0) {
+                    await taskCacheManager.addCache(task.id, casEvaluatedIds);
+                }
+            }
+
+            const casSuccessCount = casResults.filter(r => r.success).length;
+
+            // 处理新文件并保存到数据库和云盘
+            if (newFiles.length > 0 || casSuccessCount > 0) {
                 const resourceName = task.resourceName;
                 const folderPath = task.realFolderName || task.realFolderId || '';
                 const totalEps = task.totalEpisodes > 0 ? task.totalEpisodes : '?';
-                const progressEps = existingMediaCount + fileCount;
-                const latestSavedFile = [...newFiles].reverse().find(file => !file.isFolder);
+                const progressEps = existingMediaCount + fileCount + casSuccessCount;
 
                 // 构建具有表头的结构化通知消息
                 const lines = [
                     `【天翼云转存】`,
-                    `✅《${resourceName}》新增 ${fileCount} 集`,
+                    `✅《${resourceName}》新增 ${fileCount + casSuccessCount} 集`,
                     `📁 ${folderPath}`,
                     ...fileNameList,
                 ];
+                // 添加 CAS 秒传结果到通知
+                if (casSuccessCount > 0) {
+                    lines.push(`⚡ CAS秒传成功 ${casSuccessCount} 个:`);
+                    casResults.filter(r => r.success).forEach(r => {
+                        lines.push(`├─ ${r.fileName}`);
+                    });
+                }
                 if (task.totalEpisodes > 0 || existingMediaCount > 0) {
                     lines.push(`🚀 当前进度：${progressEps}${task.totalEpisodes > 0 ? '/' + task.totalEpisodes : ''} 集`);
                 }
@@ -804,7 +943,7 @@ class TaskService {
                 const firstExecution = !task.lastFileUpdateTime;
                 task.status = 'processing';
                 task.lastFileUpdateTime = new Date();
-                task.currentEpisodes = existingMediaCount + fileCount;
+                task.currentEpisodes = progressEps;
                 task.retryCount = 0;
                 process.nextTick(() => {
                     this.eventService.emit('taskComplete', new TaskCompleteEventDto({

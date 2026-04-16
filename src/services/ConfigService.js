@@ -18,6 +18,8 @@ class ConfigService {
         enableOnlySaveMedia: false, // 只保存媒体文件
         // 文件夹不存在时重新创建
         enableAutoCreateFolder: false,
+        enableCasRapidUpload: true, // 启用 CAS 秒传
+        enableDeleteCasFile: true,  // 处理后删除 .cas 文件
       },
       wecom: {
         enable: false,

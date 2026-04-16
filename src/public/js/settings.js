@@ -18,6 +18,8 @@ async function loadSettings() {
             document.getElementById('mediaSuffix').value = settings.task?.mediaSuffix || '.mkv;.iso;.ts;.mp4;.avi;.rmvb;.wmv;.m2ts;.mpg;.flv;.rm;.mov';
             document.getElementById('enableOnlySaveMedia').checked = settings.task?.enableOnlySaveMedia || false;
             document.getElementById('enableAutoCreateFolder').checked = settings.task?.enableAutoCreateFolder || false;
+            document.getElementById('enableCasRapidUpload').checked = settings.task?.enableCasRapidUpload ?? true;
+            document.getElementById('enableDeleteCasFile').checked = settings.task?.enableDeleteCasFile ?? true;
 
             // 企业微信设置
             document.getElementById('enableWecom').checked = settings.wecom?.enable || false;
@@ -125,7 +127,9 @@ async function saveSettings() {
             enableAutoClearFamilyRecycle: document.getElementById('enableAutoClearFamilyRecycle').checked,
             mediaSuffix: document.getElementById('mediaSuffix').value,
             enableOnlySaveMedia: document.getElementById('enableOnlySaveMedia').checked,
-            enableAutoCreateFolder: document.getElementById('enableAutoCreateFolder').checked
+            enableAutoCreateFolder: document.getElementById('enableAutoCreateFolder').checked,
+            enableCasRapidUpload: document.getElementById('enableCasRapidUpload').checked,
+            enableDeleteCasFile: document.getElementById('enableDeleteCasFile').checked
         },
         wecom: {
             enable: document.getElementById('enableWecom').checked,
