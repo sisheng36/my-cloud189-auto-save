@@ -422,6 +422,29 @@
                             </label>
                             <small class="form-text">秒传完成后自动删除已处理的 .cas 文件；关闭则保留 .cas 文件，可用于后续播放器直接播放</small>
                         </div>
+                        <div class="push-item">
+                            <label>
+                                <input type="checkbox" id="enableCasFamilyTransfer">
+                                通过家庭空间中转秒传（绕过个人上传配额限制）
+                            </label>
+                            <small class="form-text">默认开启。秒传时先将文件写入家庭空间，再转存到个人目标目录，从而绕过个人空间每日上传量限制。若家庭中转失败，自动降级到个人接口</small>
+                        </div>
+                        <div class="push-item" id="casFamilyFolderItem">
+                            <label for="casFamilyFolderId">家庭空间中转目录</label>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <input type="text" id="casFamilyFolderId" placeholder="留空 = 家庭根目录（推荐）" style="flex:1;min-width:200px;">
+                                <button type="button" id="browseFamilyFolderBtn" class="btn-secondary" style="white-space:nowrap">浏览选择目录</button>
+                                <button type="button" id="clearFamilyFolderBtn" class="btn-secondary" style="white-space:nowrap">清空（根目录）</button>
+                            </div>
+                            <small class="form-text">留空表示使用家庭根目录。点击「浏览选择目录」可视化选择家庭空间中的子目录</small>
+                        </div>
+                        <div class="push-item">
+                            <label>
+                                <input type="checkbox" id="enableDeleteFamilyTempFile">
+                                家庭中转完成后清理家庭空间临时文件
+                            </label>
+                            <small class="form-text">秒传完成并转存到个人空间后，自动删除家庭空间中产生的中转临时视频文件。关闭则保留（推荐关闭，依赖「自动清空家庭回收站」定期清理）</small>
+                        </div>
                     </div>
                 </div>
 

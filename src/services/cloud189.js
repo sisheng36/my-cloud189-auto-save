@@ -262,6 +262,224 @@ class Cloud189Service {
         }
         return null
     }
+
+    // 获取家庭空间根目录ID
+    async getFamilyRootFolderId(familyId) {
+        try {
+            const result = await this.request('/api/open/family/file/listFiles.action', {
+                method: 'GET',
+                searchParams: { familyId, folderId: '', needPath: true, pageNum: 1, pageSize: 1 }
+            });
+            const pathItems = Array.isArray(result?.path) ? result.path : [];
+            // 找到家庭云根目录节点（非个人根目录 -11）
+            const familyRoot = [...pathItems].reverse().find(item =>
+                item && item.fileId && item.fileId !== '-11' && item.fileId !== '-16'
+            );
+            if (familyRoot?.fileId) {
+                logTaskEvent(`[家庭中转] 家庭根目录ID: ${familyRoot.fileId}`);
+                return String(familyRoot.fileId);
+            }
+            // 降级方案：直接从文件列表中取路径
+            if (result?.fileListAO?.path?.length > 0) {
+                return String(result.fileListAO.path[0].fileId);
+            }
+            logTaskEvent('[家庭中转] 无法获取家庭根目录ID，将传入空字符串');
+            return '';
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 获取家庭根目录ID失败: ${error.message}`);
+            return '';
+        }
+    }
+
+    // 获取家庭目录子节点（用于前端目录选择）
+    async listFamilyFolderNodes(familyId, folderId = '') {
+        try {
+            const result = await this.request('/api/open/family/file/listFiles.action', {
+                method: 'GET',
+                searchParams: {
+                    familyId,
+                    folderId: folderId || '',
+                    pageNum: 1,
+                    pageSize: 200,
+                    mediaType: 0,
+                    orderBy: 3,
+                    descending: true
+                }
+            });
+            if (!result || !result.fileListAO) return [];
+            return (result.fileListAO.folderList || []).map(f => ({
+                id: String(f.id),
+                name: f.name,
+                isFolder: true
+            }));
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 获取家庭目录列表失败: ${error.message}`);
+            return [];
+        }
+    }
+
+    // 家庭接口秒传（三步：init + check + commit）
+    async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
+        try {
+            const sliceSize = this._partSize(fileSize);
+            logTaskEvent(`[家庭中转] 开始秒传至家庭空间: ${fileName}, 目录ID: ${familyFolderId || '根目录'}`);
+
+            // 第1步: 初始化（家庭接口）
+            const rsaKey = await this._getRsaKey();
+            const sessionKey = await this._getSessionKey();
+            const initParams = {
+                parentFolderId: String(familyFolderId || ''),
+                familyId: String(familyId),
+                fileName: encodeURIComponent(fileName),
+                fileSize: String(fileSize),
+                sliceSize: String(sliceSize),
+                lazyCheck: '1'
+            };
+            const initUri = '/family/initMultiUpload';
+            const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
+            let initResult;
+            try {
+                const gotLib = require('got');
+                const proxyUrl = ProxyUtil.getProxy('cloud189');
+                const opts = { headers: initReq.headers };
+                if (proxyUrl) {
+                    const { HttpsProxyAgent } = require('https-proxy-agent');
+                    opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
+                }
+                initResult = await gotLib(initReq.url, opts).json();
+            } catch (e) {
+                throw new Error(`家庭initMultiUpload失败: ${e.message}`);
+            }
+            if (initResult.errorCode) throw new Error(initResult.errorMsg || initResult.errorCode);
+            if (initResult.code && initResult.code !== 'SUCCESS') throw new Error(initResult.msg || '初始化失败');
+
+            const uploadFileId = initResult.data?.uploadFileId;
+            if (!uploadFileId) throw new Error('家庭初始化上传失败: 缺少uploadFileId');
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 第2步: 检查秒传（家庭接口）
+            const checkUri = '/family/checkTransSecond';
+            const checkParams = { fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), uploadFileId: String(uploadFileId) };
+            const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, rsaKey, sessionKey);
+            let checkResult;
+            try {
+                const gotLib = require('got');
+                const proxyUrl = ProxyUtil.getProxy('cloud189');
+                const opts = { headers: checkReq.headers };
+                if (proxyUrl) {
+                    const { HttpsProxyAgent } = require('https-proxy-agent');
+                    opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
+                }
+                checkResult = await gotLib(checkReq.url, opts).json();
+            } catch (e) {
+                throw new Error(`家庭checkTransSecond失败: ${e.message}`);
+            }
+            if (checkResult.errorCode) throw new Error(checkResult.errorMsg || checkResult.errorCode);
+            if (checkResult.code && checkResult.code !== 'SUCCESS') throw new Error(checkResult.msg || '秒传检查失败');
+            const fileDataExists = checkResult.data?.fileDataExists;
+            if (fileDataExists != 1) throw new Error('文件不存在于云端，无法秒传（家庭接口）');
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 第3步: 提交（家庭接口），含重试
+            const commitUri = '/family/commitMultiUploadFile';
+            const commitParams = { uploadFileId: String(uploadFileId), fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), lazyCheck: '1', opertype: '3' };
+            const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, rsaKey, sessionKey);
+            let commitResult;
+            let retryCount = 0;
+            const maxRetries = 3;
+            while (retryCount < maxRetries) {
+                try {
+                    const gotLib = require('got');
+                    const proxyUrl = ProxyUtil.getProxy('cloud189');
+                    const opts = { headers: commitReq.headers };
+                    if (proxyUrl) {
+                        const { HttpsProxyAgent } = require('https-proxy-agent');
+                        opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
+                    }
+                    commitResult = await gotLib(commitReq.url, opts).json();
+                    break;
+                } catch (e) {
+                    retryCount++;
+                    const statusCode = e?.response?.statusCode || '';
+                    if (statusCode === 403 && retryCount < maxRetries) {
+                        logTaskEvent(`[家庭中转] commitMultiUpload 403，第${retryCount}次重试...`);
+                        await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+                        this._rsaKey = null;
+                        continue;
+                    }
+                    throw new Error(`家庭commitMultiUpload失败: ${e.message}`);
+                }
+            }
+            if (commitResult.errorCode) throw new Error(commitResult.errorMsg || commitResult.errorCode);
+            if (commitResult.code && commitResult.code !== 'SUCCESS') throw new Error(commitResult.msg || '提交失败');
+
+            const familyFileId = commitResult.file?.userFileId || commitResult.file?.id || commitResult.data?.fileId || null;
+            logTaskEvent(`[家庭中转] 家庭空间秒传成功: ${fileName}, 文件ID: ${familyFileId}`);
+            return { success: true, familyFileId, message: '家庭秒传成功' };
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 家庭空间秒传失败: ${fileName} - ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 将家庭文件转存到个人空间指定目录
+    async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId) {
+        try {
+            logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
+            const params = {
+                familyId: String(familyId),
+                fileIdList: String(familyFileId),
+            };
+            if (personalFolderId && String(personalFolderId) !== '-11') {
+                params.destFolderId = String(personalFolderId);
+            }
+            const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
+                method: 'GET',
+                searchParams: params
+            });
+            // 接口正常时可能返回 null 或空体，视为成功
+            if (result === null || result === undefined) {
+                logTaskEvent(`[家庭中转] saveFileToMember 无返回体，视为成功`);
+                return { success: true };
+            }
+            if (result.res_code !== undefined && result.res_code !== 0) {
+                throw new Error(result.res_message || result.errorMsg || '转存到个人空间失败');
+            }
+            if (result.errorCode) {
+                throw new Error(result.errorMsg || '转存到个人空间失败');
+            }
+            logTaskEvent(`[家庭中转] 成功转存到个人空间`);
+            return { success: true };
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 转存到个人空间失败: ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
+    // 删除家庭空间中的临时文件（清理中转残留）
+    async deleteFamilyFile(familyId, fileId, fileName = '') {
+        try {
+            logTaskEvent(`[家庭中转] 删除家庭临时文件: ${fileName || fileId}`);
+            const result = await this.request('/api/open/batch/createBatchTask.action', {
+                method: 'POST',
+                form: {
+                    type: 'DELETE',
+                    taskInfos: JSON.stringify([{ fileId: String(fileId), fileName: fileName || '', isFolder: 0 }]),
+                    targetFolderId: '',
+                    familyId: String(familyId)
+                }
+            });
+            if (result?.res_code !== undefined && result.res_code !== 0) {
+                logTaskEvent(`[家庭中转] 删除家庭文件失败: ${result.res_message}`);
+            }
+            return result;
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 删除家庭临时文件异常(${fileId}): ${error.message}`);
+        }
+    }
+
     // 获取网盘直链
     async getDownloadLink(fileId, shareId = null) {
         const type = shareId? 4: 2
