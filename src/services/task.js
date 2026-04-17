@@ -873,7 +873,7 @@ class TaskService {
                                         if (!this._casFamilyInfo) {
                                             this._casFamilyInfo = await cloud189.getFamilyInfo();
                                             if (!this._casFamilyInfo) {
-                                                logTaskEvent('[家庭中转] 当前账号无家庭空间主账号，将降级到个人接口');
+                                                logTaskEvent('[家庭中转] 当前账号无家庭空间主账号，无法进入家庭中转');
                                             } else {
                                                 logTaskEvent(`[家庭中转] 家庭ID: ${this._casFamilyInfo.familyId}`);
                                             }

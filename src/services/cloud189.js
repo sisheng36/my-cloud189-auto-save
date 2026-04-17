@@ -336,12 +336,7 @@ class Cloud189Service {
                 fileSize: String(fileSize),
                 sliceSize: String(sliceSize)
             };
-            if (fileMd5 && sliceMd5) {
-                initParams.fileMd5 = fileMd5;
-                initParams.sliceMd5 = sliceMd5;
-            } else {
-                initParams.lazyCheck = '1';
-            }
+            initParams.lazyCheck = '1';
             const initUri = '/family/initMultiUpload';
             const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
             let initResult;
