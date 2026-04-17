@@ -436,16 +436,14 @@ class Cloud189Service {
             };
             if (personalFolderId && String(personalFolderId) !== '-11') {
                 params.targetFolderId = String(personalFolderId);
-                params.targetParentId = String(personalFolderId);
             }
             const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
-                method: 'GET',
-                searchParams: params
+                method: 'POST',
+                form: params
             });
-            // 接口正常时可能返回 null 或空体，视为成功
-            if (result === null || result === undefined) {
-                logTaskEvent(`[家庭中转] saveFileToMember 无返回体，视为成功`);
-                return { success: true };
+            // 失败时 request() 底层会返回 null，不能无脑视为成功
+            if (!result) {
+                throw new Error('API请求未返回结构体，可能接口底层抛出了异常或请求被拦截');
             }
             if (result.res_code !== undefined && result.res_code !== 0) {
                 throw new Error(result.res_message || result.errorMsg || '转存到个人空间失败');
