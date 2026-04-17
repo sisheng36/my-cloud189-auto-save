@@ -953,6 +953,12 @@ class TaskService {
                                         logTaskEvent(`[CAS秒传] 失败: ${casFile.name} → ${realFileName}: ${uploadResult.message}`);
                                         failedShareFileIds.add(String(casFile.id));
                                     }
+
+                                    // Step C: 清理家庭空间临时文件
+                                    if (enableDeleteFamilyTempFile && familyFileIdForCleanup && this._casFamilyInfo) {
+                                        logTaskEvent(`[家庭中转] 清理家庭空间临时文件: ${familyFileIdForCleanup}`);
+                                        await cloud189.deleteFamilyFile(this._casFamilyInfo.familyId, familyFileIdForCleanup, realFileName);
+                                    }
                                 } else {
                                     logTaskEvent(`[CAS] ${casFile.name} 解析失败: 缺少 md5 或 slice_md5`);
                                     failedShareFileIds.add(String(casFile.id));
