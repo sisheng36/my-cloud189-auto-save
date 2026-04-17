@@ -449,11 +449,11 @@ class Cloud189Service {
     }
 
     // 将家庭文件转存到个人空间指定目录
+    // 尝试 WEB_URL 方式：sessionKey + AppKey 签名
     async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId) {
         try {
             logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
 
-            // 构建请求 URL 和参数
             const params = {
                 familyId: String(familyId),
                 fileIdList: String(familyFileId),
@@ -461,47 +461,47 @@ class Cloud189Service {
                 srcParentId: String(familyFolderId)
             };
             const queryParams = new URLSearchParams(params);
-            const requestUrl = `https://cloud.189.cn/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}`;
 
-            // 获取 accessToken
-            const accessToken = await this.client.getAccessToken();
-            if (!accessToken) {
-                throw new Error('无法获取 AccessToken');
+            // 获取 sessionKey
+            const sessionKey = await this.client.getSessionKey();
+            if (!sessionKey) {
+                throw new Error('无法获取 SessionKey');
             }
 
-            // 构建签名
-            const signatureInfo = this._buildFamilySignature(requestUrl, accessToken);
-            if (!signatureInfo) {
-                throw new Error('构建签名失败');
-            }
+            // WEB_URL + sessionKey + AppKey 签名方式
+            const requestUrl = `https://cloud.189.cn/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}&sessionKey=${encodeURIComponent(sessionKey)}`;
 
-            logTaskEvent(`[家庭中转] 签名原文: ${signatureInfo.signText}`);
-            logTaskEvent(`[家庭中转] 签名结果: ${signatureInfo.signature}`);
+            const timestamp = String(Date.now());
+            const appkey = '600100422';
+            const sortEntries = Object.entries(params).sort((a, b) => a[0].localeCompare(b[0]));
+            const signItems = [`AppKey=${appkey}`, `Timestamp=${timestamp}`];
+            for (const [key, value] of sortEntries) signItems.push(`${key}=${value}`);
+            const signature = crypto.createHash('md5').update(signItems.join('&')).digest('hex').toLowerCase();
 
-            // 构建请求头
+            logTaskEvent(`[家庭中转] WEB签名原文: ${signItems.join('&')}`);
+            logTaskEvent(`[家庭中转] WEB签名结果: ${signature}`);
+
             const headers = {
                 'Accept': 'application/json;charset=UTF-8',
                 'Sign-Type': '1',
-                'Signature': signatureInfo.signature,
-                'Timestamp': signatureInfo.timestamp,
-                'AccessToken': accessToken,
+                'Signature': signature,
+                'Timestamp': timestamp,
+                'AppKey': appkey,
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             };
 
-            logTaskEvent(`[家庭中转] 请求URL: ${requestUrl}`);
-            logTaskEvent(`[家庭中转] 请求头: ${JSON.stringify(headers)}`);
+            logTaskEvent(`[家庭中转] WEB请求URL: ${requestUrl}`);
 
-            // 直接发送 GET 请求
             const response = await got(requestUrl, {
                 method: 'GET',
                 headers,
                 responseType: 'json',
-                throwHttpErrors: false  // 不自动抛出 HTTP 错误，让我们自己处理
+                throwHttpErrors: false
             });
 
             const result = response.body;
-            logTaskEvent(`[家庭中转] HTTP状态: ${response.statusCode}`);
-            logTaskEvent(`[家庭中转] 响应: ${JSON.stringify(result)}`);
+            logTaskEvent(`[家庭中转] WEB响应状态: ${response.statusCode}`);
+            logTaskEvent(`[家庭中转] WEB响应: ${JSON.stringify(result)}`);
 
             if (response.statusCode >= 400) {
                 const errorMsg = result?.res_message || result?.errorMsg || JSON.stringify(result);
