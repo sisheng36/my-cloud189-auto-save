@@ -440,7 +440,8 @@ class Cloud189Service {
             }
             const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
                 method: 'POST',
-                form: params
+                form: params,
+                searchParams: params
             });
             // 失败时 request() 底层会返回 null，不能无脑视为成功
             if (!result) {
