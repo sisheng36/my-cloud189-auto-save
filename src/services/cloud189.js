@@ -426,26 +426,83 @@ class Cloud189Service {
         }
     }
 
+    // 家庭签名辅助方法
+    _buildFamilySignature(urlStr, accessToken, extraParams = null) {
+        if (!urlStr || !accessToken) return null;
+        try {
+            const parsedUrl = new URL(urlStr, 'https://cloud.189.cn');
+            const signEntries = Array.from(parsedUrl.searchParams.entries());
+            if (extraParams && typeof extraParams === 'object') {
+                for (const [key, value] of Object.entries(extraParams)) {
+                    signEntries.push([key, value == null ? '' : String(value)]);
+                }
+            }
+            signEntries.sort((a, b) => a[0].localeCompare(b[0]));
+            const timestamp = String(Date.now());
+            const signItems = [`AccessToken=${accessToken}`, `Timestamp=${timestamp}`];
+            for (const [key, value] of signEntries) signItems.push(`${key}=${value}`);
+            const signature = crypto.createHash('md5').update(signItems.join('&')).digest('hex').toLowerCase();
+            return { timestamp, signature, signText: signItems.join('&') };
+        } catch (e) {
+            return null;
+        }
+    }
+
     // 将家庭文件转存到个人空间指定目录
-    // 注意：saveFileToMember 接口可能不支持指定目标目录，文件会转存到个人空间默认位置
-    // TODO: 如果需要在指定目录，可能需要先转存再移动
     async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId) {
         try {
             logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
-            // 构建查询参数（油猴脚本只用 familyId + fileIdList，不传目标目录参数）
-            const queryParams = new URLSearchParams({
+
+            // 构建请求 URL 和参数
+            const params = {
                 familyId: String(familyId),
-                fileIdList: String(familyFileId)
+                fileIdList: String(familyFileId),
+                targetParentId: String(personalFolderId),
+                srcParentId: String(familyFolderId)
+            };
+            const queryParams = new URLSearchParams(params);
+            const requestUrl = `https://cloud.189.cn/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}`;
+
+            // 获取 accessToken
+            const accessToken = await this.client.getAccessToken();
+            if (!accessToken) {
+                throw new Error('无法获取 AccessToken');
+            }
+
+            // 构建签名
+            const signatureInfo = this._buildFamilySignature(requestUrl, accessToken);
+            if (!signatureInfo) {
+                throw new Error('构建签名失败');
+            }
+
+            logTaskEvent(`[家庭中转] 签名原文: ${signatureInfo.signText}`);
+            logTaskEvent(`[家庭中转] 签名结果: ${signatureInfo.signature}`);
+
+            // 构建请求头
+            const headers = {
+                'Accept': 'application/json;charset=UTF-8',
+                'Sign-Type': '1',
+                'Signature': signatureInfo.signature,
+                'Timestamp': signatureInfo.timestamp,
+                'AccessToken': accessToken,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            };
+
+            logTaskEvent(`[家庭中转] 请求URL: ${requestUrl}`);
+            logTaskEvent(`[家庭中转] 请求头: ${JSON.stringify(headers)}`);
+
+            // 直接发送 GET 请求
+            const response = await got(requestUrl, {
+                method: 'GET',
+                headers,
+                responseType: 'json'
             });
-            // 暂不传递 targetParentId/srcParentId，因为 Java BO 显示这些参数未被接收
-            // 如果需要指定目标目录，可能需要使用其他接口或在转存后移动文件
-            logTaskEvent(`[家庭中转] 请求参数: ${queryParams.toString()}`);
-            const result = await this.request(`/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}`, {
-                method: 'GET'
-            });
-            // 失败时 request() 底层会返回 null，不能无脑视为成功
+
+            const result = response.body;
+            logTaskEvent(`[家庭中转] 响应: ${JSON.stringify(result)}`);
+
             if (!result) {
-                throw new Error('API请求未返回结构体，可能接口底层抛出了异常或请求被拦截');
+                throw new Error('API请求未返回结构体');
             }
             if (result.res_code !== undefined && result.res_code !== 0) {
                 throw new Error(result.res_message || result.errorMsg || '转存到个人空间失败');
