@@ -427,20 +427,18 @@ class Cloud189Service {
     }
 
     // 将家庭文件转存到个人空间指定目录
+    // 注意：saveFileToMember 接口可能不支持指定目标目录，文件会转存到个人空间默认位置
+    // TODO: 如果需要在指定目录，可能需要先转存再移动
     async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId) {
         try {
             logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
-            // 构建查询参数（油猴脚本证明此接口用 GET 请求，参数放 URL query string）
+            // 构建查询参数（油猴脚本只用 familyId + fileIdList，不传目标目录参数）
             const queryParams = new URLSearchParams({
                 familyId: String(familyId),
                 fileIdList: String(familyFileId)
             });
-            if (personalFolderId && String(personalFolderId) !== '-11') {
-                queryParams.set('targetParentId', String(personalFolderId));
-            }
-            if (familyFolderId) {
-                queryParams.set('srcParentId', String(familyFolderId));
-            }
+            // 暂不传递 targetParentId/srcParentId，因为 Java BO 显示这些参数未被接收
+            // 如果需要指定目标目录，可能需要使用其他接口或在转存后移动文件
             logTaskEvent(`[家庭中转] 请求参数: ${queryParams.toString()}`);
             const result = await this.request(`/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}`, {
                 method: 'GET'
