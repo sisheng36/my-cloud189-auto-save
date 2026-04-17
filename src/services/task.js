@@ -958,6 +958,21 @@ class TaskService {
                                     if (enableDeleteFamilyTempFile && familyFileIdForCleanup && this._casFamilyInfo) {
                                         logTaskEvent(`[家庭中转] 清理家庭空间临时文件: ${familyFileIdForCleanup}`);
                                         await cloud189.deleteFamilyFile(this._casFamilyInfo.familyId, familyFileIdForCleanup, realFileName);
+                                        
+                                        // 立即清空家庭回收站，彻底释放空间
+                                        try {
+                                            logTaskEvent(`[家庭中转] 正在清空家庭回收站以彻底释放配额...`);
+                                            await cloud189.request('/api/open/batch/createBatchTask.action', {
+                                                method: 'POST',
+                                                form: {
+                                                    type: 'EMPTY_RECYCLE',
+                                                    taskInfos: '[]',
+                                                    familyId: String(this._casFamilyInfo.familyId)
+                                                }
+                                            });
+                                        } catch (err) {
+                                            logTaskEvent(`[家庭中转] 清空家庭回收站失败: ${err.message}`);
+                                        }
                                     }
                                 } else {
                                     logTaskEvent(`[CAS] ${casFile.name} 解析失败: 缺少 md5 或 slice_md5`);
