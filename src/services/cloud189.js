@@ -559,8 +559,15 @@ class Cloud189Service {
             const checkUrl = 'https://api.cloud.189.cn/open/batch/checkBatchTask.action';
             const timestamp = String(Date.now());
             const checkParams = { type, taskId: String(taskId) };
-            const signItems = [`AccessToken=${accessToken}`, `Timestamp=${timestamp}`, `taskId=${taskId}`, `type=${type}`];
-            const signature = crypto.createHash('md5').update(signItems.sort((a, b) => a.localeCompare(b)).join('&')).digest('hex').toLowerCase();
+
+            // 签名：AccessToken 和 Timestamp 固定前缀，其他参数按 key 排序
+            const sortedParams = Object.entries(checkParams).sort((a, b) => a[0].localeCompare(b[0]));
+            const signText = [`AccessToken=${accessToken}`, `Timestamp=${timestamp}`]
+                .concat(sortedParams.map(([k, v]) => `${k}=${v}`))
+                .join('&');
+            const signature = crypto.createHash('md5').update(signText).digest('hex').toLowerCase();
+
+            logTaskEvent(`[家庭中转] checkBatchTask签名原文: ${signText}`);
 
             const headers = {
                 'Accept': 'application/json;charset=UTF-8',
