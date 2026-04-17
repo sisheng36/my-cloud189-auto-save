@@ -449,74 +449,96 @@ class Cloud189Service {
     }
 
     // 将家庭文件转存到个人空间指定目录
-    // 尝试 WEB_URL 方式：sessionKey + AppKey 签名
-    async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId) {
+    // 参考 OpenList 实现：使用批量任务 COPY 而不是 saveFileToMember（该接口需要浏览器 Cookie）
+    // copyType=2 表示从家庭空间复制到个人空间
+    async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId, fileName = '') {
         try {
             logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
 
-            const params = {
+            // 使用批量任务 COPY 方式转存
+            const taskInfos = JSON.stringify([
+                { fileId: String(familyFileId), fileName: fileName || '', isFolder: 0 }
+            ]);
+
+            const formParams = {
+                type: 'COPY',
+                taskInfos: taskInfos,
+                targetFolderId: String(personalFolderId),
                 familyId: String(familyId),
-                fileIdList: String(familyFileId),
-                targetParentId: String(personalFolderId),
-                srcParentId: String(familyFolderId)
-            };
-            const queryParams = new URLSearchParams(params);
-
-            // 获取 sessionKey
-            const sessionKey = await this.client.getSessionKey();
-            if (!sessionKey) {
-                throw new Error('无法获取 SessionKey');
-            }
-
-            // WEB_URL + sessionKey + AppKey 签名方式
-            const requestUrl = `https://cloud.189.cn/api/open/family/manage/saveFileToMember.action?${queryParams.toString()}&sessionKey=${encodeURIComponent(sessionKey)}`;
-
-            const timestamp = String(Date.now());
-            const appkey = '600100422';
-            const sortEntries = Object.entries(params).sort((a, b) => a[0].localeCompare(b[0]));
-            const signItems = [`AppKey=${appkey}`, `Timestamp=${timestamp}`];
-            for (const [key, value] of sortEntries) signItems.push(`${key}=${value}`);
-            const signature = crypto.createHash('md5').update(signItems.join('&')).digest('hex').toLowerCase();
-
-            logTaskEvent(`[家庭中转] WEB签名原文: ${signItems.join('&')}`);
-            logTaskEvent(`[家庭中转] WEB签名结果: ${signature}`);
-
-            const headers = {
-                'Accept': 'application/json;charset=UTF-8',
-                'Sign-Type': '1',
-                'Signature': signature,
-                'Timestamp': timestamp,
-                'AppKey': appkey,
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                groupId: 'null',
+                copyType: '2',  // 关键：copyType=2 表示家庭→个人
+                shareId: 'null'
             };
 
-            logTaskEvent(`[家庭中转] WEB请求URL: ${requestUrl}`);
+            logTaskEvent(`[家庭中转] 批量COPY任务参数: ${JSON.stringify(formParams)}`);
 
-            const response = await got(requestUrl, {
-                method: 'GET',
-                headers,
-                responseType: 'json',
-                throwHttpErrors: false
+            // 创建批量任务
+            const result = await this.request('/api/open/batch/createBatchTask.action', {
+                method: 'POST',
+                form: formParams
             });
 
-            const result = response.body;
-            logTaskEvent(`[家庭中转] WEB响应状态: ${response.statusCode}`);
-            logTaskEvent(`[家庭中转] WEB响应: ${JSON.stringify(result)}`);
+            logTaskEvent(`[家庭中转] 批量COPY任务响应: ${JSON.stringify(result)}`);
 
-            if (response.statusCode >= 400) {
-                const errorMsg = result?.res_message || result?.errorMsg || JSON.stringify(result);
-                throw new Error(`HTTP ${response.statusCode}: ${errorMsg}`);
-            }
             if (!result) {
-                throw new Error('API请求未返回结构体');
+                throw new Error('批量任务创建失败：无响应');
             }
             if (result.res_code !== undefined && result.res_code !== 0) {
-                throw new Error(result.res_message || result.errorMsg || '转存到个人空间失败');
+                throw new Error(result.res_message || '批量任务创建失败');
             }
-            if (result.errorCode) {
-                throw new Error(result.errorMsg || '转存到个人空间失败');
+
+            const taskId = result.taskId;
+            if (!taskId) {
+                throw new Error('批量任务创建失败：缺少 taskId');
             }
-            logTaskEvent(`[家庭中转] 成功转存到个人空间`);
+
+            logTaskEvent(`[家庭中转] 批量任务已创建，taskId: ${taskId}，等待完成...`);
+
+            // 等待任务完成
+            const maxWaitTime = 30000; // 最大等待30秒
+            const startTime = Date.now();
+            let taskStatus = 0;
+
+            while (Date.now() - startTime < maxWaitTime) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                const statusResult = await this.request('/api/open/batch/checkBatchTask.action', {
+                    method: 'POST',
+                    form: { type: 'COPY', taskId: String(taskId) }
+                });
+
+                taskStatus = statusResult?.taskStatus || 0;
+                logTaskEvent(`[家庭中转] 任务状态: ${taskStatus}`);
+
+                // 状态 4 = 完成
+                if (taskStatus === 4) {
+                    logTaskEvent(`[家庭中转] ✅ 批量COPY任务完成`);
+                    return { success: true };
+                }
+
+                // 状态 2 = 冲突，需要处理
+                if (taskStatus === 2) {
+                    logTaskEvent(`[家庭中转] 检测到文件冲突，尝试覆盖...`);
+                    // 处理冲突：设置 DealWay=3 表示覆盖
+                    const manageResult = await this.request('/api/open/batch/manageBatchTask.action', {
+                        method: 'POST',
+                        form: {
+                            type: 'COPY',
+                            taskId: String(taskId),
+                            targetFolderId: String(personalFolderId),
+                            taskInfos: JSON.stringify([
+                                { fileId: String(familyFileId), fileName: fileName || '', isFolder: 0, dealWay: 3 }
+                            ])
+                        }
+                    });
+                    logTaskEvent(`[家庭中转] 冲突处理响应: ${JSON.stringify(manageResult)}`);
+                }
+            }
+
+            if (taskStatus !== 4) {
+                throw new Error(`批量任务超时，当前状态: ${taskStatus}`);
+            }
+
             return { success: true };
         } catch (error) {
             logTaskEvent(`[家庭中转] 转存到个人空间失败: ${error.message}`);
