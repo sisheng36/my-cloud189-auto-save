@@ -495,12 +495,18 @@ class Cloud189Service {
             const response = await got(requestUrl, {
                 method: 'GET',
                 headers,
-                responseType: 'json'
+                responseType: 'json',
+                throwHttpErrors: false  // 不自动抛出 HTTP 错误，让我们自己处理
             });
 
             const result = response.body;
+            logTaskEvent(`[家庭中转] HTTP状态: ${response.statusCode}`);
             logTaskEvent(`[家庭中转] 响应: ${JSON.stringify(result)}`);
 
+            if (response.statusCode >= 400) {
+                const errorMsg = result?.res_message || result?.errorMsg || JSON.stringify(result);
+                throw new Error(`HTTP ${response.statusCode}: ${errorMsg}`);
+            }
             if (!result) {
                 throw new Error('API请求未返回结构体');
             }
