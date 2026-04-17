@@ -449,7 +449,8 @@ class Cloud189Service {
     }
 
     // 将家庭文件转存到个人空间指定目录
-    // 参考 OpenList 实现：使用批量任务 COPY 而不是 saveFileToMember（该接口需要浏览器 Cookie）
+    // 参考 upload189-cas-web-14.js 油猴脚本实现：使用批量任务 COPY
+    // 关键：使用 api.cloud.189.cn 域名 + AccessToken 签名，而不是 cloud.189.cn + AppKey 签名
     // copyType=2 表示从家庭空间复制到个人空间
     async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId, fileName = '') {
         try {
@@ -472,8 +473,10 @@ class Cloud189Service {
 
             logTaskEvent(`[家庭中转] 批量COPY任务参数: ${JSON.stringify(formParams)}`);
 
-            // 创建批量任务
-            const result = await this.request('/api/open/batch/createBatchTask.action', {
+            // 使用完整 API URL，确保 SDK 使用 AccessToken 签名（而不是 AppKey 签名）
+            // 注意：api.cloud.189.cn/open/... 使用 AccessToken 签名
+            // 而 cloud.189.cn/api/open/... 使用 AppKey 签名
+            const result = await this.request('https://api.cloud.189.cn/open/batch/createBatchTask.action', {
                 method: 'POST',
                 form: formParams
             });
@@ -502,7 +505,7 @@ class Cloud189Service {
             while (Date.now() - startTime < maxWaitTime) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
 
-                const statusResult = await this.request('/api/open/batch/checkBatchTask.action', {
+                const statusResult = await this.request('https://api.cloud.189.cn/open/batch/checkBatchTask.action', {
                     method: 'POST',
                     form: { type: 'COPY', taskId: String(taskId) }
                 });
@@ -520,7 +523,7 @@ class Cloud189Service {
                 if (taskStatus === 2) {
                     logTaskEvent(`[家庭中转] 检测到文件冲突，尝试覆盖...`);
                     // 处理冲突：设置 DealWay=3 表示覆盖
-                    const manageResult = await this.request('/api/open/batch/manageBatchTask.action', {
+                    const manageResult = await this.request('https://api.cloud.189.cn/open/batch/manageBatchTask.action', {
                         method: 'POST',
                         form: {
                             type: 'COPY',
