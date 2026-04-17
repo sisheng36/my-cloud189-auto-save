@@ -427,7 +427,7 @@ class Cloud189Service {
     }
 
     // 将家庭文件转存到个人空间指定目录
-    async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId) {
+    async saveFamilyFileToPersonal(familyId, familyFileId, personalFolderId, familyFolderId) {
         try {
             logTaskEvent(`[家庭中转] 将家庭文件(${familyFileId})转存到个人目录(${personalFolderId})`);
             const params = {
@@ -436,12 +436,14 @@ class Cloud189Service {
             };
             if (personalFolderId && String(personalFolderId) !== '-11') {
                 params.targetFolderId = String(personalFolderId);
-                params.targetParentId = String(personalFolderId);
+            if (familyFolderId) {
+                params.srcParentId = String(familyFolderId);
+            }
             }
             const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
                 method: 'POST',
                 form: params,
-                searchParams: params
+                form: params
             });
             // 失败时 request() 底层会返回 null，不能无脑视为成功
             if (!result) {
