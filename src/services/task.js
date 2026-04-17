@@ -911,7 +911,7 @@ class TaskService {
                                                 // Step B: 将家庭文件转存到个人目标目录
                                                 logTaskEvent(`[家庭中转] 家庭秒传成功，开始转存到个人目录(${task.realFolderId})`);
                                                 const saveResult = await cloud189.saveFamilyFileToPersonal(
-                                                    familyId, familyResult.familyFileId, task.realFolderId, familyFolderId
+                                                    familyId, familyResult.familyFileId, task.realFolderId, familyFolderId, realFileName
                                                 );
                                                 if (saveResult.success) {
                                                     uploadResult = { success: true, userFileId: familyResult.familyFileId, message: '家庭中转秒传成功' };
