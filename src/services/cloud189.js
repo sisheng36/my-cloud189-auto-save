@@ -434,15 +434,17 @@ class Cloud189Service {
                 familyId: String(familyId),
                 fileIdList: String(familyFileId),
             };
+            // 设置目标个人目录 (Java BO 字段名: targetParentId)
             if (personalFolderId && String(personalFolderId) !== '-11') {
-                params.targetFolderId = String(personalFolderId);
+                params.targetParentId = String(personalFolderId);
+            }
+            // 设置源家庭目录 (Java BO 字段名: srcParentId)
             if (familyFolderId) {
                 params.srcParentId = String(familyFolderId);
             }
-            }
+            logTaskEvent(`[家庭中转] 请求参数: ${JSON.stringify(params)}`);
             const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
                 method: 'POST',
-                form: params,
                 form: params
             });
             // 失败时 request() 底层会返回 null，不能无脑视为成功
