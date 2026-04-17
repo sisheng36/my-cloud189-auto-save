@@ -436,6 +436,7 @@ class Cloud189Service {
             };
             if (personalFolderId && String(personalFolderId) !== '-11') {
                 params.targetFolderId = String(personalFolderId);
+                params.targetParentId = String(personalFolderId);
             }
             const result = await this.request('/api/open/family/manage/saveFileToMember.action', {
                 method: 'POST',
