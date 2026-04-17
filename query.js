@@ -1,0 +1,1 @@
+const sqlite3 = require('sqlite3').verbose(); const db = new sqlite3.Database('data/database.sqlite', sqlite3.OPEN_READONLY, (err) => { if (err) throw err; }); db.get('SELECT shareFolderName, realRootFolderId, realFolderId FROM task WHERE resourceName = \'°×ÈÕÌáµÆ\'', (err, row) => { console.log(row); db.close(); });

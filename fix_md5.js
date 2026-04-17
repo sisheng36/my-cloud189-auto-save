@@ -1,0 +1,1 @@
+const fs = require('fs'); let c = fs.readFileSync('src/services/cloud189.js', 'utf8'); c = c.replace(/if \(fileMd5 && sliceMd5\) \{[^\}]+\} else \{[^\}]+initParams\.lazyCheck = '1';[^\}]+\}/, 'initParams.lazyCheck = \'1\';'); fs.writeFileSync('src/services/cloud189.js', c, 'utf8');

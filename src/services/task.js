@@ -558,12 +558,21 @@ class TaskService {
         if (task.realRootFolderId) {
             const rootFolderInfo = await cloud189.listFiles(task.realRootFolderId);
             if (rootFolderInfo.res_code === "FileNotFound") {
+                // 记录原来的目录属性：如果自身和根目录一致，说明就是装在根目录里的任务
+                const isRootTask = task.realRootFolderId === task.realFolderId;
+
                 // realRootFolderId 不存在或不可用，需要创建
                 const rootFolderName = task.resourceName.replace('(根)', '').trim();
                 logTaskEvent(`正在创建根目录: ${rootFolderName}`);
                 const rootFolder = await cloud189.createFolder(rootFolderName, task.targetFolderId);
                 if (!rootFolder?.id) throw new Error('创建根目录失败');
                 task.realRootFolderId = rootFolder.id;
+                
+                // 如果是直接存根目录任务，同步更新 realFolderId
+                if (isRootTask) {
+                    task.realFolderId = rootFolder.id;
+                }
+                
                 logTaskEvent(`根目录创建成功: ${rootFolderName}`);
             }
         }

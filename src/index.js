@@ -1151,7 +1151,7 @@ AppDataSource.initialize().then(async () => {
     // 全局错误处理中间件
     app.use((err, req, res, next) => {
         console.error('捕获到全局异常:', err.message);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ success: false, error: err.message });
     });
 
 
