@@ -348,373 +348,494 @@
 
         <div id="settingsTab" class="tab-content">
             <form id="settingsForm">
-                <div class="form-group">
-                    <label for="systemApiKey">系统apiKey</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="text" id="systemApiKey" placeholder="系统apiKey" style="flex: 1;">
-                        <button type="button" onclick="generateApiKey()" class="btn-default" style="margin-top: unset;">生成Key</button>
+                <!-- 卡片1: 系统安全 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">🔐</span>
+                        <span>系统安全</span>
                     </div>
-                    <small class="form-text">系统apiKey, 可用于第三方调用接口使用。生成后请及时保存设置。</small>
-                </div>
-                <div class="form-group">
-                    <label>任务设置</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label for="taskExpireDays">任务过期天数</label>
-                            <input type="number" id="taskExpireDays" min="1" placeholder="默认3天">
-                            <small class="form-text">超过指定天数未新增资源的任务将状态改为已完成</small>
-                        </div>
-                        <div class="push-item">
-                            <label for="taskMaxRetries">最大重试次数</label>
-                            <input type="number" id="taskMaxRetries" min="0" placeholder="默认3次">
-                            <small class="form-text">任务执行失败时的最大重试次数</small>
-                        </div>
-                        <div class="push-item">
-                            <label for="taskRetryInterval">重试间隔（秒）</label>
-                            <input type="number" id="taskRetryInterval" min="0" placeholder="默认300秒">
-                            <small class="form-text">任务重试的时间间隔</small>
-                        </div>
-                        <div class="push-item">
-                            <label>任务定时检查</label>
-                            <input type="text" id="taskCheckCron" placeholder="Cron表达式">
-                            <small class="form-text">默认：0 19-23 * * * (每天19点到23点整点执行一次) 允许多个表达式, 使用|分隔, 例如: 0 19-23 * * *|0 16-23 * * *</small>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableAutoClearRecycle">
-                                自动清空个人回收站
-                            </label>
-                            <label>
-                                <input type="checkbox" id="enableAutoClearFamilyRecycle">
-                                自动清空回家庭收站
-                            </label>
-
-                            <input type="text" id="cleanRecycleCron" placeholder="Cron表达式">
-                            <small class="form-text">默认：0 */8 * * * (每8小时)</small>
-                        </div>
-                        <div class="push-item">
-                            <label for="mediaSuffix">媒体文件后缀</label>
-                            <input type="text" id="mediaSuffix" placeholder="例如: .mp4, .mkv">
-                            <small class="form-text">仅用于计算当前已转存集数,其他文件一样会转存。当任务总集数填写后,会根据当前填写的后缀匹配媒体文件,满足后缀的文件会计入已更新数。</small>
-                            <label>
-                                <input type="checkbox" id="enableOnlySaveMedia">
-                                仅转存指定后缀的媒体文件
-                            </label>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableAutoCreateFolder">
-                                云盘文件夹不存在时自动创建
-                            </label>
-                            <small class="form-text">当天翼云盘中任务更新目录不存在的时候, 自动创建文件夹, 仅会创建最后一级文件夹</small>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableCasRapidUpload">
-                                启用 CAS 秒传
-                            </label>
-                            <small class="form-text">自动扫描分享目录中的 .cas 文件，解析其中的秒传指纹信息，通过秒传方式将真实视频转存到目标目录（需云端已有相同文件）</small>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableDeleteCasFile">
-                                处理后删除 .cas 文件
-                            </label>
-                            <small class="form-text">秒传完成后自动删除已处理的 .cas 文件；关闭则保留 .cas 文件，可用于后续播放器直接播放</small>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableCasFamilyTransfer">
-                                通过家庭空间中转秒传（绕过个人上传配额限制）
-                            </label>
-                            <small class="form-text">默认开启。秒传时优先将文件写入家庭空间并转存至目标目录。若关闭此项，则直接使用旧版个人秒传接口。</small>
-                        </div>
-                        <div class="push-item" id="casFamilyFolderItem">
-                            <label for="casFamilyFolderId">家庭空间中转目录</label>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                                <input type="text" id="casFamilyFolderId" placeholder="留空 = 家庭根目录（推荐）" style="flex:1;min-width:200px;">
-                                <button type="button" id="browseFamilyFolderBtn" class="btn-secondary" style="white-space:nowrap">浏览选择目录</button>
-                                <button type="button" id="clearFamilyFolderBtn" class="btn-secondary" style="white-space:nowrap">清空（根目录）</button>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">系统 API Key</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-inline-inputs">
+                                        <input type="text" id="systemApiKey" placeholder="系统apiKey">
+                                        <button type="button" onclick="generateApiKey()" class="btn-default">生成Key</button>
+                                    </div>
+                                    <small class="form-text">系统apiKey, 可用于第三方调用接口使用。生成后请及时保存设置。</small>
+                                </div>
                             </div>
-                            <small class="form-text">留空表示使用家庭根目录。点击「浏览选择目录」可视化选择家庭空间中的子目录</small>
-                        </div>
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableDeleteFamilyTempFile">
-                                家庭中转完成后清理家庭空间临时文件
-                            </label>
-                            <small class="form-text">秒传完成并转存到个人空间后，自动删除家庭空间中产生的中转临时视频文件。关闭则保留（推荐关闭，依赖「自动清空家庭回收站」定期清理）</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>消息推送设置</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableWecom">
-                                企微 推送
-                            </label>
-                            <input type="text" id="wecomWebhook" placeholder="机器人webhook">
-                            <label style="margin-top: 10px; display: block; font-weight: bold; color: #1890ff;">企业微信自建应用 (双向交互)</label>
-                            <input type="text" id="wecomCorpId" placeholder="企业ID (corpId)">
-                            <input type="text" id="wecomAppId" placeholder="应用AgentId">
-                            <input type="text" id="wecomAppSecret" placeholder="应用Secret">
-                            <input type="text" id="wecomCallbackToken" placeholder="Token">
-                            <input type="text" id="wecomCallbackAesKey" placeholder="EncodingAESKey">
-                            <label>
-                                <input type="checkbox" id="wecomCallbackEnabled">
-                                启用自建应用回调
-                            </label>
-                            <label>
-                                <input type="checkbox" id="enableTelegram">
-                                Telegram 推送
-                            </label>
-                            <input type="text" id="proxyDomain" placeholder="反代地址, 选填">
-                            <label for="telegramBotToken">Bot Token</label>
-                            <input type="text" id="telegramBotToken" placeholder="Bot Token">
-                            <label for="telegramChatId">Chat ID</label>
-                            <input type="text" id="telegramChatId" placeholder="Chat ID">
-
-                            <label>
-                                <input type="checkbox" id="enableWXPusher">
-                                WXPusher 推送
-                            </label>
-                            <input type="text" id="wXPusherSPT" placeholder="WXPusher SPT">
-                            <label>
-                                <input type="checkbox" id="enableBark">
-                                Bark 推送
-                            </label>
-                            <input type="text" id="barkServerUrl" placeholder="Bark serverUrl">
-                            <input type="text" id="barkKey" placeholder="Bark key">
-
-                            <label>
-                                <input type="checkbox" id="enablePushPlus">
-                                PushPlus 推送
-                            </label>
-                            <label for="pushplusToken">Token</label>
-                            <input type="text" id="pushplusToken" placeholder="PushPlus Token">
-                            <label for="pushplusTopic">群组编码</label>
-                            <input type="text" id="pushplusTopic" placeholder="群组编码, 不填仅给自己发送">
-                            <label for="pushplusChannel">推送渠道</label>
-                            <select id="pushplusChannel">
-                                <option value="wechat">微信公众号</option>
-                                <option value="webhook">WebHook</option>
-                                <option value="cp">企业微信</option>
-                                <option value="sms">短信</option>
-                                <option value="mail">邮件</option>
-                            </select>
-                            <label for="pushplusWebhook">Webhook(选填)</label>
-                            <input type="text" id="pushplusWebhook" placeholder="仅在选择 WebHook 渠道时需要填写">
-                            <label for="pushplusTo">好友令牌(选填)</label>
-                            <input type="text" id="pushplusTo" placeholder="好友令牌">
+                            <div class="settings-item">
+                                <div class="settings-item-label">登录账号密码</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="systemUserName" placeholder="登录账号">
+                                        <input type="password" id="systemPassword" placeholder="登录密码">
+                                    </div>
+                                    <small class="form-text">设置后访问系统需要登录验证。</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Telegram 机器人</label>
-                    <div class="push-item">
-                        <label>
-                            <input type="checkbox" id="enableTgBot">
-                            点亮 TG 创任务
-                        </label>
-                        <label for="telegramChatId">Token</label>
-                        <input type="text" id="tgBotToken" placeholder="Bot Token">
-                        <label for="telegramChatId">Chat ID</label>
-                        <input type="text" id="tgBotChatId" placeholder="Chat ID">
-                        <small class="form-text">点亮后即可通过TG机器人管理任务。</small>
+                <!-- 卡片2: 任务设置 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">⚙️</span>
+                        <span>任务设置</span>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="proxySettings">代理设置</label>
-                    <div class="push-item">
-                    <div class="proxy-settings">
-                        <input type="text" id="proxyHost" placeholder="代理地址: 127.0.0.1">
-                        <input type="number" id="proxyPort" placeholder="代理端口">
-                        <input type="text" id="proxyUsername" placeholder="账号 如果有">
-                        <input type="text" id="proxyPassword" placeholder="密码 如果有">
-                    </div>
-                    <div class="proxy-options" style="margin-top: 10px;">
-                        <label style="display: block; margin-bottom: 5px;">启用代理的服务：</label>
-                        <div class="proxy-services-container">
-                            <label class="proxy-service-item">
-                                <input type="checkbox" id="proxyTelegram">
-                                <span>Telegram</span>
-                            </label>
-                            <label class="proxy-service-item">
-                                <input type="checkbox" id="proxyTmdb">
-                                <span>TMDB</span>
-                            </label>
-                            <label class="proxy-service-item">
-                                <input type="checkbox" id="proxyOpenAI">
-                                <span>OpenAI</span>
-                            </label>
-                            <label class="proxy-service-item">
-                                <input type="checkbox" id="proxyCloud189">
-                                <span>天翼</span>
-                            </label>
-                            <label class="proxy-service-item">
-                                <input type="checkbox" id="proxyCustomPush">
-                                <span>自定义推送</span>
-                            </label>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">任务过期与重试</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <div>
+                                            <label>过期天数</label>
+                                            <input type="number" id="taskExpireDays" min="1" placeholder="默认3天">
+                                            <small class="form-text">超过指定天数未新增资源的任务将状态改为已完成</small>
+                                        </div>
+                                        <div>
+                                            <label>最大重试次数</label>
+                                            <input type="number" id="taskMaxRetries" min="0" placeholder="默认3次">
+                                        </div>
+                                        <div>
+                                            <label>重试间隔（秒）</label>
+                                            <input type="number" id="taskRetryInterval" min="0" placeholder="默认300秒">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">定时执行</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <div>
+                                            <label>任务定时检查</label>
+                                            <input type="text" id="taskCheckCron" placeholder="Cron表达式">
+                                            <small class="form-text">默认：0 19-23 * * * (每天19点到23点整点执行一次)</small>
+                                        </div>
+                                    </div>
+                                    <div class="settings-checkbox-group">
+                                        <label><input type="checkbox" id="enableAutoClearRecycle">自动清空个人回收站</label>
+                                        <label><input type="checkbox" id="enableAutoClearFamilyRecycle">自动清空家庭回收站</label>
+                                    </div>
+                                    <input type="text" id="cleanRecycleCron" placeholder="清空回收站Cron表达式">
+                                    <small class="form-text">默认：0 */8 * * * (每8小时)</small>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">媒体文件后缀</div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="mediaSuffix" placeholder="例如: .mp4, .mkv">
+                                    <small class="form-text">仅用于计算当前已转存集数，其他文件一样会转存。</small>
+                                    <label><input type="checkbox" id="enableOnlySaveMedia">仅转存指定后缀的媒体文件</label>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">文件夹自动创建</div>
+                                <div class="settings-item-content">
+                                    <label><input type="checkbox" id="enableAutoCreateFolder">云盘文件夹不存在时自动创建</label>
+                                    <small class="form-text">仅会创建最后一级文件夹</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- 卡片3: CAS 秒传设置 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">⚡</span>
+                        <span>CAS 秒传设置</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-content">
+                                    <label><input type="checkbox" id="enableCasRapidUpload">启用 CAS 秒传</label>
+                                    <small class="form-text">自动扫描分享目录中的 .cas 文件，解析秒传指纹信息</small>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-content">
+                                    <label><input type="checkbox" id="enableDeleteCasFile">处理后删除 .cas 文件</label>
+                                    <small class="form-text">关闭则保留 .cas 文件，可用于播放器直接播放</small>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-content">
+                                    <label><input type="checkbox" id="enableCasFamilyTransfer">通过家庭空间中转秒传</label>
+                                    <small class="form-text">绕过个人上传配额限制，默认开启</small>
+                                </div>
+                            </div>
+                            <div class="settings-item" id="casFamilyFolderItem">
+                                <div class="settings-item-label">家庭空间中转目录</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-inline-inputs">
+                                        <input type="text" id="casFamilyFolderId" placeholder="留空 = 家庭根目录（推荐）">
+                                        <button type="button" id="browseFamilyFolderBtn" class="btn-secondary">浏览选择</button>
+                                        <button type="button" id="clearFamilyFolderBtn" class="btn-secondary">清空</button>
+                                    </div>
+                                    <small class="form-text">点击「浏览选择」可视化选择家庭空间子目录</small>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-content">
+                                    <label><input type="checkbox" id="enableDeleteFamilyTempFile">家庭中转后清理临时文件</label>
+                                    <small class="form-text">推荐关闭，依赖「自动清空家庭回收站」定期清理</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="proxySettings">用户名密码设置</label>
-                    <div class="proxy-settings">
-                        <input type="text" id="systemUserName" placeholder="登录账号">
-                        <input type="password" id="systemPassword" placeholder="登录密码">
+                <!-- 卡片4: 消息推送 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">📢</span>
+                        <span>消息推送</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <!-- 企业微信 -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableWecom">
+                                    企业微信推送
+                                </div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="wecomWebhook" placeholder="机器人webhook">
+                                    <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border-light);">
+                                        <div style="font-weight:500;margin-bottom:8px;color:var(--primary-color);">企业微信自建应用 (双向交互)</div>
+                                        <div class="settings-row">
+                                            <input type="text" id="wecomCorpId" placeholder="企业ID">
+                                            <input type="text" id="wecomAppId" placeholder="应用AgentId">
+                                        </div>
+                                        <div class="settings-row">
+                                            <input type="text" id="wecomAppSecret" placeholder="应用Secret">
+                                            <input type="text" id="wecomCallbackToken" placeholder="Token">
+                                        </div>
+                                        <input type="text" id="wecomCallbackAesKey" placeholder="EncodingAESKey">
+                                        <label><input type="checkbox" id="wecomCallbackEnabled">启用自建应用回调</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Telegram 推送 -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableTelegram">
+                                    Telegram 推送
+                                </div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="proxyDomain" placeholder="反代地址（选填）">
+                                    <div class="settings-row">
+                                        <input type="text" id="telegramBotToken" placeholder="Bot Token">
+                                        <input type="text" id="telegramChatId" placeholder="Chat ID">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Telegram 机器人 -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableTgBot">
+                                    Telegram 机器人（创建任务）
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="tgBotToken" placeholder="Bot Token">
+                                        <input type="text" id="tgBotChatId" placeholder="Chat ID">
+                                    </div>
+                                    <small class="form-text">点亮后可通过TG机器人管理任务</small>
+                                </div>
+                            </div>
+                            <!-- WXPusher -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableWXPusher">
+                                    WXPusher 推送
+                                </div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="wXPusherSPT" placeholder="WXPusher SPT">
+                                </div>
+                            </div>
+                            <!-- Bark -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableBark">
+                                    Bark 推送
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="barkServerUrl" placeholder="Bark serverUrl">
+                                        <input type="text" id="barkKey" placeholder="Bark key">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- PushPlus -->
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enablePushPlus">
+                                    PushPlus 推送
+                                </div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="pushplusToken" placeholder="Token">
+                                    <input type="text" id="pushplusTopic" placeholder="群组编码（不填仅给自己发送）">
+                                    <div class="settings-row">
+                                        <select id="pushplusChannel" style="flex:1">
+                                            <option value="wechat">微信公众号</option>
+                                            <option value="webhook">WebHook</option>
+                                            <option value="cp">企业微信</option>
+                                            <option value="sms">短信</option>
+                                            <option value="mail">邮件</option>
+                                        </select>
+                                        <input type="text" id="pushplusWebhook" placeholder="Webhook（选填）" style="flex:2">
+                                    </div>
+                                    <input type="text" id="pushplusTo" placeholder="好友令牌（选填）">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <button type="submit">保存设置</button>
+                <!-- 卡片5: 网络代理 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">🌐</span>
+                        <span>网络代理</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">代理服务器</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="proxyHost" placeholder="代理地址: 127.0.0.1">
+                                        <input type="number" id="proxyPort" placeholder="端口">
+                                    </div>
+                                    <div class="settings-row">
+                                        <input type="text" id="proxyUsername" placeholder="账号（选填）">
+                                        <input type="text" id="proxyPassword" placeholder="密码（选填）">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">启用代理的服务</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-checkbox-group">
+                                        <label><input type="checkbox" id="proxyTelegram">Telegram</label>
+                                        <label><input type="checkbox" id="proxyTmdb">TMDB</label>
+                                        <label><input type="checkbox" id="proxyOpenAI">OpenAI</label>
+                                        <label><input type="checkbox" id="proxyCloud189">天翼云盘</label>
+                                        <label><input type="checkbox" id="proxyCustomPush">自定义推送</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 保存按钮 -->
+                <div class="settings-actions">
+                    <button type="submit" class="btn-primary">保存设置</button>
+                </div>
             </form>
         </div>
 
         <div id="mediaTab" class="tab-content">
             <form id="mediaForm">
-                <div class="form-group">
-                    <label>OpenAI 设置</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableOpenAI">
-                                启用 AI 辅助
-                            </label>
-                            <label for="openaiBaseUrl">API地址</label>
-                            <input type="text" id="openaiBaseUrl" placeholder="API地址,如: https://open.bigmodel.cn/api/paas/v4">
-                            <label for="openaiApiKey">API Key</label>
-                            <input type="text" id="openaiApiKey" placeholder="API Key">
-                            <label for="openaiModel">模型名称</label>
-                            <input type="text" id="openaiModel" placeholder="模型名称">
-                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                <button type="button" class="btn-default" onclick="testOpenAIConnection()" style="margin-top: 0; padding: 6px 12px; height: 32px; flex: 1;">测试连接</button>
-                                <button type="button" class="btn-default" onclick="getOpenAIModels()" style="margin-top: 0; padding: 6px 12px; height: 32px; flex: 1;">获取模型列表</button>
-                            </div>
-                            <label for="openaiTemplate">剧集命名模版</label>
-                            <input type="text" id="openaiTemplate" placeholder="文件名模板">
-                            <label for="openaiMovieTemplate">电影命名模版</label>
-                            <input type="text" id="openaiMovieTemplate" placeholder="电影命名模版">
-                            <div class="help-text-container">
-                                <button type="button" class="toggle-help-text" onclick="toggleHelpText(this)">显示帮助</button>
-                                <small class="form-text">
-                                    支持所有 OpenAI API 格式的接口，例如：<br/>
-                                    • OpenAI API: https://api.openai.com/v1<br/>
-                                    • 智谱AI: https://open.bigmodel.cn/api/paas/v4
-                                    <br/>
-                                    <span style="color:orange">注意: 启用后AI重命名将优先执行（优先于正则重命名），会自动处理任务名称、文件夹名和剧集名称。如果您设置了正则重命名规则，则仅在手动执行时生效。</span><br/>
-                                    剧集模板示例：<br/>
-                                    <span style="background-color: #f0f0f0;">{name} - {se}{ext}</span> → 北上 - S01E01.mkv<br/>
-                                    <span style="background-color: #f0f0f0;">{name}.第{sn}季第{en}集{ext}</span> → 北上.第1季第1集.mkv<br/>
-                                    <span style="background-color: #f0f0f0;">{name}.{year}.S{s}E{e}{ext}</span> → 北上.2024.S01E01.mkv<br/>
-                                    电影模板示例：<br/>
-                                    <span style="background-color: #f0f0f0;">{name} - {year}{ext}</span> → 指环王1 - 2001.mkv<br/>
-                                    通用占位符：<br/>
-                                    {name} - 剧名<br/>
-                                    {year} - 年份<br/>
-                                    {ext} - 扩展名（.mkv）<br/>
-                                    剧集额外占位符：<br/>
-                                    {s} - 季数（补零）<br/>
-                                    {sn} - 季数（不补零）<br/>
-                                    {e} - 集数（补零）<br/>
-                                    {en} - 集数（不补零）<br/>
-                                    {se} - 季集格式（S01E01）<br/>
-                                </small>
-                            </div>  
-                        </div>
+                <!-- 卡片1: AI 重命名 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">🤖</span>
+                        <span>AI 重命名</span>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>STRM 设置</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableStrm">
-                                启用 STRM 生成
-                            </label>
-                            <div class="help-text-container">
-                                <button type="button" class="toggle-help-text" onclick="toggleHelpText(this)">显示帮助</button>
-                                <small class="form-text">例如: 
-                                    <br/>如果播放地址是<span style="background-color: #f0f0f0;">http://127.0.0.1:5244/d/天翼云盘/剧集/北上(2025)/Season 01/S01E01.mkv</span> 
-                                    <br/>那么你的前缀就应该写 <span style="background-color: #f0f0f0;">http://127.0.0.1:5244/d/天翼云盘</span>
-                                    <br/>完整逻辑为
-                                    <br/>生成strm路径: 
-                                    <br/>账号本地目录 + 任务更新目录(排除根目录) + 文件名.strm
-                                    <br/>strm内容(即播放地址)
-                                    <br/>账号媒体目录 + 任务更新目录(排除根目录) + 文件名
-                                </small>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableOpenAI">
+                                    启用 AI 辅助重命名
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="openaiBaseUrl" placeholder="API地址">
+                                        <input type="text" id="openaiApiKey" placeholder="API Key">
+                                    </div>
+                                    <input type="text" id="openaiModel" placeholder="模型名称">
+                                    <div class="settings-inline-inputs" style="margin-top:8px;">
+                                        <button type="button" class="btn-default" onclick="testOpenAIConnection()">测试连接</button>
+                                        <button type="button" class="btn-default" onclick="getOpenAIModels()">获取模型列表</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">命名模板</div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <div>
+                                            <label style="font-size:0.85rem;color:#666;">剧集模板</label>
+                                            <input type="text" id="openaiTemplate" placeholder="{name} - {se}{ext}">
+                                        </div>
+                                        <div>
+                                            <label style="font-size:0.85rem;color:#666;">电影模板</label>
+                                            <input type="text" id="openaiMovieTemplate" placeholder="{name} - {year}{ext}">
+                                        </div>
+                                    </div>
+                                    <div class="settings-help">
+                                        <button type="button" class="settings-help-toggle" onclick="toggleHelpText(this)">显示模板说明</button>
+                                        <small class="form-text settings-help-text">
+                                            <strong>支持所有 OpenAI API 格式的接口：</strong><br/>
+                                            • OpenAI: https://api.openai.com/v1<br/>
+                                            • 智谱AI: https://open.bigmodel.cn/api/paas/v4<br/>
+                                            <br/>
+                                            <strong style="color:orange">注意:</strong> 启用后AI重命名优先执行，正则重命名仅在手动执行时生效。<br/>
+                                            <br/>
+                                            <strong>剧集示例：</strong><br/>
+                                            <code>{name} - {se}{ext}</code> → 北上 - S01E01.mkv<br/>
+                                            <code>{name}.第{sn}季第{en}集{ext}</code> → 北上.第1季第1集.mkv<br/>
+                                            <br/>
+                                            <strong>电影示例：</strong><br/>
+                                            <code>{name} - {year}{ext}</code> → 指环王1 - 2001.mkv<br/>
+                                            <br/>
+                                            <strong>占位符：</strong><br/>
+                                            {name} 剧名 | {year} 年份 | {ext} 扩展名<br/>
+                                            {s}/{sn} 季数(补零/不补零) | {e}/{en} 集数 | {se} S01E01格式
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Emby 设置</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableEmby">
-                                启用 Emby 通知
-                            </label>
-                            <label for="embyServer">Emby 服务器地址</label>
-                            <input type="text" id="embyServer" placeholder="例如: http://localhost:8096">
-                            <label for="embyApiKey">API Key</label>
-                            <input type="text" id="embyApiKey" placeholder="Emby API Key">
-                        </div>
+                <!-- 卡片2: 播放器集成 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">📺</span>
+                        <span>播放器集成</span>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>CloudSaver 设置</label>
-                    <div class="proxy-settings" style="border: 1px solid var(--border-color);padding: 12px;">
-                        <input type="text" id="cloudSaverUrl" placeholder="服务地址: http://localhost:8008">
-                        <input type="text" id="cloudSaverUsername" placeholder="账号">
-                        <input type="password" id="cloudSaverPassword" placeholder="密码">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Alist 设置</label>
-                    <div class="proxy-settings" style="border: 1px solid var(--border-color);padding: 12px;">
-                            <label style="display: flex;align-items: center;gap: 8px;margin-bottom: 0;width: 15%;">
-                                <input type="checkbox" id="enableAlist" style="width: auto;">
-                                启用
-                            </label>
-                            <input type="text" id="alistServer" style="height: 32px; width: 40%;" placeholder="例如: http://localhost:5244">
-                            <input type="text" id="alistApiKey" style="height: 32px;" placeholder="Alist 令牌">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>刮削设置 (实验特性)</label>
-                    <div class="push-settings">
-                        <div class="push-item">
-                            <label>
-                                <input type="checkbox" id="enableScraper">
-                                启用刮削
-                            </label>
-                            <input type="text" id="tmdbApiKey" placeholder="TMDB API Key">
-                            <div class="help-text-container">
-                                <button type="button" class="toggle-help-text" onclick="toggleHelpText(this)">显示帮助</button>
-                                <small class="form-text">开启后会自动从TMDB获取影视剧信息。请先在 <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB</a> 申请 API Key。仅供娱乐使用; <br/>如需使用请按以下格式命名：<br/>
-                                    <span style="background-color: #f0f0f0;">剧名(年份)/[Season 01/][剧名.]S01E01.mkv</span><br/>
-                                    <span style="background-color: #f0f0f0;">电影名(年份)/电影名.年份.mkv</span><br/>
-                                    例如：<span style="background-color: #f0f0f0;">沙海(2018)/Season 01/沙海.S01E01.mkv</span><br/>
-                                    <span style="background-color: #f0f0f0;">哪吒之魔童降世(2019)/哪吒之魔童降世.2019.mkv</span><br/>
-                                    <span style="color: #666;">注：Season 01目录和文件名中的剧名可省略，但建议保留以便识别</span><br/>
-                                    <br/>
-                                </small>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableStrm">
+                                    STRM 文件生成
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-help">
+                                        <button type="button" class="settings-help-toggle" onclick="toggleHelpText(this)">显示STRM说明</button>
+                                        <small class="form-text settings-help-text">
+                                            <strong>STRM 文件用于媒体播放器直接播放网络资源：</strong><br/>
+                                            <br/>
+                                            <strong>生成逻辑：</strong><br/>
+                                            • STRM路径: 账号本地目录 + 任务更新目录 + 文件名.strm<br/>
+                                            • STRM内容: 账号媒体目录 + 任务更新目录 + 文件名<br/>
+                                            <br/>
+                                            <strong>示例：</strong><br/>
+                                            播放地址: <code>http://127.0.0.1:5244/d/天翼云盘/剧集/北上/Season 01/S01E01.mkv</code><br/>
+                                            媒体目录前缀应设为: <code>http://127.0.0.1:5244/d/天翼云盘</code>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableEmby">
+                                    Emby 通知
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="embyServer" placeholder="Emby服务器地址">
+                                        <input type="text" id="embyApiKey" placeholder="Emby API Key">
+                                    </div>
+                                    <small class="form-text">任务完成后自动通知Emby刷新媒体库</small>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <button type="submit">保存设置</button>
+                <!-- 卡片3: 资源搜索 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">🔍</span>
+                        <span>资源搜索</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">CloudSaver</div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="cloudSaverUrl" placeholder="服务地址: http://localhost:8008">
+                                    <div class="settings-row">
+                                        <input type="text" id="cloudSaverUsername" placeholder="账号">
+                                        <input type="password" id="cloudSaverPassword" placeholder="密码">
+                                    </div>
+                                    <small class="form-text">配置后可通过CloudSaver搜索资源并创建转存任务</small>
+                                </div>
+                            </div>
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableAlist">
+                                    Alist 挂载
+                                </div>
+                                <div class="settings-item-content">
+                                    <div class="settings-row">
+                                        <input type="text" id="alistServer" placeholder="Alist地址: http://localhost:5244">
+                                        <input type="text" id="alistApiKey" placeholder="Alist令牌">
+                                    </div>
+                                    <small class="form-text">用于STRM批量生成，挂载天翼云盘目录到媒体服务器</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 卡片4: TMDB 刮削 -->
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <span class="card-icon">🎬</span>
+                        <span>TMDB 刮削 (实验特性)</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <div class="settings-group">
+                            <div class="settings-item">
+                                <div class="settings-item-label">
+                                    <input type="checkbox" id="enableScraper">
+                                    启用刮削
+                                </div>
+                                <div class="settings-item-content">
+                                    <input type="text" id="tmdbApiKey" placeholder="TMDB API Key">
+                                    <small class="form-text">在 <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB官网</a> 申请API Key</small>
+                                    <div class="settings-help">
+                                        <button type="button" class="settings-help-toggle" onclick="toggleHelpText(this)">显示目录命名规范</button>
+                                        <small class="form-text settings-help-text">
+                                            <strong>开启后会自动从TMDB获取影视剧信息。</strong><br/>
+                                            <br/>
+                                            <strong>剧集命名格式：</strong><br/>
+                                            <code>剧名(年份)/[Season 01/][剧名.]S01E01.mkv</code><br/>
+                                            示例: <code>沙海(2018)/Season 01/沙海.S01E01.mkv</code><br/>
+                                            <br/>
+                                            <strong>电影命名格式：</strong><br/>
+                                            <code>电影名(年份)/电影名.年份.mkv</code><br/>
+                                            示例: <code>哪吒之魔童降世(2019)/哪吒之魔童降世.2019.mkv</code><br/>
+                                            <br/>
+                                            <span style="color:#666;">注：Season目录和文件名中的剧名可省略，但建议保留以便识别</span>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 保存按钮 -->
+                <div class="settings-actions">
+                    <button type="submit" class="btn-primary">保存设置</button>
+                </div>
             </form>
         </div>
     </div>

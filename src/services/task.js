@@ -208,6 +208,20 @@ class TaskService {
                 baseName = resourcePath.trim();
             }
 
+            // ====== 优先从任务名中提取 TMDB ID（比标题搜索更准确） ======
+            // 支持格式: {tmdb-71233}, [tmdbid=71233], tmdb:71233 等
+            const tmdbIdMatch = resourcePath.match(/(?:^|[\[{(\s_/])tmdb(?:id)?[-=:_ ](\d+)(?:$|[\]})\s_/])/i);
+            let extractedTmdbId = null;
+
+            if (tmdbIdMatch) {
+                extractedTmdbId = parseInt(tmdbIdMatch[1]);
+                // 清理 baseName，移除 TMDB ID 标记部分
+                baseName = baseName.replace(/\s*\{tmdb[^}]*\}\s*/i, '').trim();
+                baseName = baseName.replace(/\s*\[tmdb[^]]*\]\s*/i, '').trim();
+                baseName = baseName.replace(/\s*\(tmdb[^)]*\)\s*/i, '').trim();
+                logTaskEvent(`[AI重命名] 从任务名提取到 TMDB ID: ${extractedTmdbId}，清理后的名称: ${baseName}`);
+            }
+
             let tmdbName = null;
             let tmdbParsed = false;
             let tmdbType = type;
@@ -216,10 +230,10 @@ class TaskService {
                 if (taskDto && taskDto.manualTmdbBound && taskDto.tmdbId && taskDto.videoType) {
                     logTaskEvent(`[AI重命名] 检测到任务已手动绑定 TMDB ID: ${taskDto.tmdbId}，跳过自动搜索，直接拉取绑定信息。`);
                     const tmdbService = new TMDBService();
-                    const detail = taskDto.videoType === 'movie' 
+                    const detail = taskDto.videoType === 'movie'
                         ? await tmdbService.getMovieDetails(taskDto.tmdbId)
                         : await tmdbService.getTVDetails(taskDto.tmdbId);
-                    
+
                     if (detail && detail.title) {
                         tmdbName = detail.title;
                         tmdbType = detail.type || taskDto.videoType;
@@ -228,6 +242,43 @@ class TaskService {
                         logTaskEvent(`[AI重命名] 手动指定匹配成功: 成功获得影视名称【${tmdbName} (${year})】`);
                     } else {
                         logTaskEvent(`[AI重命名] 手动指定匹配失败: 无法根据提供的 TMDB ID 从远程获取到实际名称`);
+                    }
+                } else if (extractedTmdbId) {
+                    // ====== 优先使用提取到的 TMDB ID，直接调用详情 API ======
+                    const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+                    if (tmdbApiKey) {
+                        logTaskEvent(`[AI重命名] 使用提取的 TMDB ID ${extractedTmdbId} 直接查询详情...`);
+                        const tmdbService = new TMDBService();
+
+                        // 根据用户指定的类型查询，未指定时先尝试 TV 再尝试 Movie
+                        let detail = null;
+                        if (taskDto?.videoType === 'movie') {
+                            detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                            tmdbType = 'movie';
+                        } else if (taskDto?.videoType === 'tv') {
+                            detail = await tmdbService.getTVDetails(extractedTmdbId);
+                            tmdbType = 'tv';
+                        } else {
+                            // 未指定类型，优先尝试 TV（因为 CAS 资源多为剧集）
+                            detail = await tmdbService.getTVDetails(extractedTmdbId);
+                            if (detail && detail.title) {
+                                tmdbType = 'tv';
+                            } else {
+                                detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                                if (detail && detail.title) {
+                                    tmdbType = 'movie';
+                                }
+                            }
+                        }
+
+                        if (detail && detail.title) {
+                            tmdbName = detail.title;
+                            if (detail.releaseDate) year = parseInt(detail.releaseDate.substring(0, 4)) || year;
+                            tmdbParsed = true;
+                            logTaskEvent(`[AI重命名] TMDB ID ${extractedTmdbId} 匹配成功: 【${tmdbName} (${year})】，类型: ${tmdbType}`);
+                        } else {
+                            logTaskEvent(`[AI重命名] TMDB ID ${extractedTmdbId} 查询失败: 未找到有效信息，将回退标题搜索`);
+                        }
                     }
                 } else {
                     // 检查是否配置了 TMDB API Key

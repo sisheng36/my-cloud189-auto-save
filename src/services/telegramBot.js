@@ -1,4 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
+const got = require('got');
 const { AppDataSource } = require('../database');
 const { Task, Account, CommonFolder } = require('../entities');
 const { TaskService } = require('./task');
@@ -1121,10 +1122,12 @@ class TelegramBotService {
         if (!input) return;
         const loadMsg = await this.bot.sendMessage(chatId, `🔍 正在搜索 "${input}"...`);
         try {
-            const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/tmdb/search?query=${encodeURIComponent(input)}&type=${this.tmdbBindType}`, {
-                headers: { 'x-api-key': require('./ConfigService').getConfigValue('system.apiKey', '') }
-            });
-            const result = await response.json();
+            const apiKey = require('./ConfigService').getConfigValue('system.apiKey', '');
+            const port = process.env.PORT || 3000;
+            const result = await got(`http://localhost:${port}/api/tmdb/search?query=${encodeURIComponent(input)}&type=${this.tmdbBindType}`, {
+                headers: { 'x-api-key': apiKey },
+                responseType: 'json'
+            }).json();
             if (!result.success || !result.data?.length) {
                 await this.bot.editMessageText(`未找到相关结果，请尝试其他关键词`, { chat_id: chatId, message_id: loadMsg.message_id });
                 return;
@@ -1186,18 +1189,18 @@ class TelegramBotService {
         try {
             const apiKey = require('./ConfigService').getConfigValue('system.apiKey', '');
             const port = process.env.PORT || 3000;
-            const resp = await fetch(`http://localhost:${port}/api/tasks/${taskId}/manual-tmdb`, {
+            const result = await got(`http://localhost:${port}/api/tasks/${taskId}/manual-tmdb`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
-                body: JSON.stringify({ tmdbId: String(tmdbId), videoType, title, manualSeason })
-            });
-            const result = await resp.json();
+                json: { tmdbId: String(tmdbId), videoType, title, manualSeason },
+                responseType: 'json'
+            }).json();
             if (result.success) {
-                // 触发执行
-                fetch(`http://localhost:${port}/api/tasks/${taskId}/execute`, {
+                // 触发执行（后台异步，不等待结果）
+                got(`http://localhost:${port}/api/tasks/${taskId}/execute`, {
                     method: 'POST',
                     headers: { 'x-api-key': apiKey }
-                });
+                }).catch(() => {});
                 const seasonTxt = manualSeason != null ? ` 第${manualSeason}季` : ' (自动识别季)';
                 const successTxt = `✅ 绑定成功！\n🎥 媒体：${title}${videoType === 'tv' ? seasonTxt : ''}\n🎯 TMDB ID: ${tmdbId}\n\n🔄 已在后台触发重命名，稍后会发送结果通知`;
                 await this.bot.editMessageText(successTxt, { chat_id: chatId, message_id: messageId });
