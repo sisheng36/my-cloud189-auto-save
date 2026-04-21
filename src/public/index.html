@@ -491,8 +491,8 @@
                             <div class="settings-item">
                                 <div class="settings-item-label">CAS 秒传并发数</div>
                                 <div class="settings-item-content">
-                                    <input type="number" id="casConcurrentLimit" min="1" max="20" value="5" style="width:80px;">
-                                    <small class="form-text">同时进行的秒传数量，默认5个，建议不超过10以免触发限流</small>
+                                    <input type="number" id="casConcurrentLimit" min="1" max="20" value="1" style="width:80px;">
+                                    <small class="form-text">同时进行的秒传数量。1=串行稳定；3-5=提速3-5倍，可能触发限流；>10=最快但风险高</small>
                                 </div>
                             </div>
                         </div>
