@@ -864,11 +864,29 @@ class TaskService {
             if (enableCasRapidUpload) {
                 // 从分享文件中筛选 .cas 文件
                 const allCasFiles = shareFiles.filter(f => !f.isFolder && CasUtils.isCasFile(f.name));
-                // 排除已处理过的
-                const newCasFiles = allCasFiles.filter(f => !cachedFileIds.has(String(f.id)));
+                // 排除已处理过的（基于 fileId 缓存）
+                const uncachedCasFiles = allCasFiles.filter(f => !cachedFileIds.has(String(f.id)));
+
+                // ====== 新增：智能接力检测 ======
+                // 检查目标目录已有的 .cas 文件名，避免重复转存和解析
+                const existingCasFileNames = new Set(
+                    folderFiles.filter(f => CasUtils.isCasFile(f.name)).map(f => f.name)
+                );
+                // 真正需要处理的：文件名不在目标目录中的
+                const newCasFiles = uncachedCasFiles.filter(f => !existingCasFileNames.has(f.name));
+
+                // 对已存在同名 .cas 的文件，直接标记为已处理（接力）
+                const skippedCasFiles = uncachedCasFiles.filter(f => existingCasFileNames.has(f.name));
+                if (skippedCasFiles.length > 0) {
+                    logTaskEvent(`[CAS] 接力跳过 ${skippedCasFiles.length} 个已存在的 .cas 文件（更换链接后智能识别）`);
+                    // 将跳过的文件也加入缓存，避免下次重复检测
+                    for (const f of skippedCasFiles) {
+                        await taskCacheManager.addCache(task.id, String(f.id));
+                    }
+                }
 
                 if (newCasFiles.length > 0) {
-                    logTaskEvent(`[CAS] 发现 ${newCasFiles.length} 个 CAS 文件，开始处理...`);
+                    logTaskEvent(`[CAS] 发现 ${newCasFiles.length} 个新 CAS 文件，开始处理...`);
 
                     // 第2.1步: 先将 .cas 文件转存到目标目录
                     const casTaskInfoList = newCasFiles.map(f => ({
