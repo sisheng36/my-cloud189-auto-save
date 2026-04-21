@@ -233,6 +233,7 @@ function renderTaskMediaWall(tasks) {
                     <div class="media-wall-topline">
                         <span class="status-badge status-${task.status}">${formatStatus(task.status)}</span>
                         ${metaLine ? `<span class="media-wall-meta">${metaLine}</span>` : ''}
+                        ${task.manualTmdbBound ? `<span class="tmdb-bound-badge" style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;margin-left:6px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' 第' + task.manualSeason + '季' : ''}</span>` : ''}
                     </div>
                     <a href="${task.shareLink}" target="_blank" class='media-wall-title' title="${taskName}">${taskName}</a>
                     <p class="media-wall-overview" title="${overview}">${overview}</p>
@@ -284,7 +285,7 @@ async function fetchTasks() {
                         <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
                         <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
                     </td>
-                    <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a></td>
+                    <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a>${task.manualTmdbBound ? `<span style="background:#10b981;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:4px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' S' + task.manualSeason : ''}</span>` : ''}</td>
                     <td data-label="账号">${task.account.username}</td>
                     <!--<td data-label="首次保存目录"><a href="https://cloud.189.cn/web/main/file/folder/${task.targetFolderId}" target="_blank">${task.targetFolderId}</a></td>-->
                      <td data-label="更新目录"><a href="javascript:void(0)" onclick="showFileListModal('${task.id}')" class='ellipsis'>${task.realFolderName || task.realFolderId}</a></td>
