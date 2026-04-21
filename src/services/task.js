@@ -960,6 +960,7 @@ class TaskService {
                                 if (existingBaseNames.has(realBaseName) || currentFileNames.has(realFileName)) {
                                     result.message = '已存在（去后缀匹配），跳过秒传';
                                     result.skipped = true; // 标记为跳过，不计入成功数
+                                    logTaskEvent(`[CAS] ⏭️ ${realFileName} - 已存在，跳过`);
                                     return result;
                                 }
 
@@ -1030,51 +1031,82 @@ class TaskService {
                             return result;
                         };
 
-                        // 分批并发处理
-                        for (let i = 0; i < newCasFiles.length; i += casConcurrentLimit) {
-                            const batch = newCasFiles.slice(i, i + casConcurrentLimit);
-                            const batchNum = Math.floor(i / casConcurrentLimit) + 1;
-                            const totalBatches = Math.ceil(newCasFiles.length / casConcurrentLimit);
-                            logTaskEvent(`[CAS] 处理第 ${batchNum}/${totalBatches} 批，共 ${batch.length} 个文件`);
+                        // ====== 滑动窗口并发处理 ======
+                        logTaskEvent(`[CAS] 开始处理 ${newCasFiles.length} 个文件，并发数 ${casConcurrentLimit}`);
 
-                            const batchResults = await Promise.allSettled(batch.map(processCasFile));
+                        // 统计计数器
+                        let completedCount = 0;
+                        let successCount = 0;
+                        let skippedCount = 0;
+                        let failedCount = 0;
 
-                            // 处理批次结果
-                            for (const settleResult of batchResults) {
-                                if (settleResult.status === 'fulfilled') {
-                                    const r = settleResult.value;
-                                    if (r.savedFile) {
-                                        savedCasFileIds.push(r.savedFile.id);
-                                    }
-                                    if (r.realFileName) {
-                                        // 更新已存在文件集合（防止后续批次重复）
-                                        existingBaseNames.add(getBaseNameWithoutExt(r.realFileName));
-                                        currentFileNames.add(r.realFileName);
-                                    }
-                                    if (r.success && r.realFileName) {
-                                        casResults.push({ fileName: r.realFileName, success: true });
-                                        newFiles.push({});
-                                    } else if (!r.success && r.casFile) {
-                                        failedShareFileIds.add(String(r.casFile.id));
-                                    }
-                                    // 清理家庭临时文件
-                                    if (enableDeleteFamilyTempFile && r.familyFileIdForCleanup && this._casFamilyInfo) {
-                                        try {
-                                            await cloud189.deleteFamilyFile(this._casFamilyInfo.familyId, r.familyFileIdForCleanup, r.realFileName);
-                                        } catch (e) {
-                                            logTaskEvent(`[家庭中转] 清理临时文件失败: ${e.message}`);
-                                        }
-                                    }
-                                } else {
-                                    logTaskEvent(`[CAS] 并发处理异常: ${settleResult.reason?.message || settleResult.reason}`);
+                        // 滑动窗口并发池
+                        const pool = [];
+                        const runningTasks = new Set();
+
+                        for (const casFile of newCasFiles) {
+                            // 等待池中有空位
+                            while (runningTasks.size >= casConcurrentLimit) {
+                                await Promise.race(pool.filter(p => runningTasks.has(p)));
+                            }
+
+                            // 创建任务
+                            const taskPromise = processCasFile(casFile).then(result => {
+                                runningTasks.delete(taskPromise);
+
+                                // 处理结果
+                                if (result.savedFile) {
+                                    savedCasFileIds.push(result.savedFile.id);
                                 }
-                            }
+                                if (result.realFileName) {
+                                    existingBaseNames.add(getBaseNameWithoutExt(result.realFileName));
+                                    currentFileNames.add(result.realFileName);
+                                }
 
-                            // 批次间短暂延迟，避免 API 限流
-                            if (i + casConcurrentLimit < newCasFiles.length) {
-                                await new Promise(resolve => setTimeout(resolve, 500));
-                            }
+                                completedCount++;
+                                if (result.skipped) {
+                                    skippedCount++;
+                                } else if (result.success && result.realFileName) {
+                                    successCount++;
+                                    casResults.push({ fileName: result.realFileName, success: true });
+                                    newFiles.push({});
+                                } else if (!result.success && result.casFile) {
+                                    failedCount++;
+                                    failedShareFileIds.add(String(result.casFile.id));
+                                    if (result.message) {
+                                        logTaskEvent(`[CAS] ❌ ${result.realFileName || casFile.name} - ${result.message}`);
+                                    }
+                                }
+
+                                // 清理家庭临时文件
+                                if (enableDeleteFamilyTempFile && result.familyFileIdForCleanup && this._casFamilyInfo) {
+                                    cloud189.deleteFamilyFile(this._casFamilyInfo.familyId, result.familyFileIdForCleanup, result.realFileName)
+                                        .catch(e => logTaskEvent(`[家庭中转] 清理临时文件失败: ${e.message}`));
+                                }
+
+                                // 每处理10个输出一次进度
+                                if (completedCount % 10 === 0 || completedCount === newCasFiles.length) {
+                                    logTaskEvent(`[CAS] 进度 ${completedCount}/${newCasFiles.length}，成功 ${successCount}，跳过 ${skippedCount}，失败 ${failedCount}`);
+                                }
+
+                                return result;
+                            }).catch(error => {
+                                runningTasks.delete(taskPromise);
+                                completedCount++;
+                                failedCount++;
+                                logTaskEvent(`[CAS] ❌ ${casFile.name} - 异常: ${error.message}`);
+                                failedShareFileIds.add(String(casFile.id));
+                            });
+
+                            pool.push(taskPromise);
+                            runningTasks.add(taskPromise);
                         }
+
+                        // 等待所有任务完成
+                        await Promise.all(pool);
+
+                        // 最终统计
+                        logTaskEvent(`[CAS] 处理完成，成功 ${successCount}，跳过 ${skippedCount}，失败 ${failedCount}`);
 
                         // 清空家庭回收站（批量清理后统一执行）
                         if (enableDeleteFamilyTempFile && this._casFamilyInfo) {
