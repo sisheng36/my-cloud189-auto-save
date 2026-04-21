@@ -691,7 +691,7 @@
                                             • OpenAI: https://api.openai.com/v1<br/>
                                             • 智谱AI: https://open.bigmodel.cn/api/paas/v4<br/>
                                             <br/>
-                                            <strong style="color:orange">注意:</strong> 启用后AI重命名优先执行，正则重命名仅在手动执行时生效。<br/>
+                                            <strong style="color:orange">注意:</strong> 系统优先使用本地正则极速匹配剧集信息（快速准确），仅当正则无法完全匹配时才回退调用AI解析（较慢）。TMDB查询用于获取官方中文名称。<br/>
                                             <br/>
                                             <strong>剧集示例：</strong><br/>
                                             <code>{name} - {se}{ext}</code> → 北上 - S01E01.mkv<br/>

@@ -239,7 +239,7 @@ function renderTaskMediaWall(tasks) {
                     <div class="media-wall-latest" title="${latestSaved}">${latestSaved}</div>
                     ${formatMissingEpisodes(task) ? `<div class="media-wall-missing" title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
                     <div class="media-wall-path" title="${task.realFolderName || task.realFolderId}">${task.realFolderName || task.realFolderId}</div>
-                    <div class="media-wall-time" style="font-size: 11px; color: #94a3b8; margin-top: 4px;">更新时间: ${formatDateTime(task.lastFileUpdateTime) || '无'}</div>
+                    <div class="media-wall-time" style="font-size: 13px; color: #3b82f6; margin-top: 6px; font-weight: 500;">⏱ 更新: ${formatDateTime(task.lastFileUpdateTime) || '无'}</div>
                     <div class="media-wall-actions">
                         <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
                         <button onclick="showEditTaskModal(${task.id})">修改</button>
@@ -292,7 +292,7 @@ async function fetchTasks() {
                         <div class='ellipsis' title="${formatLatestSavedFile(task)}">${formatLatestSavedFile(task)}</div>
                         ${formatMissingEpisodes(task) ? `<div class='ellipsis' title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
                     </td>
-                    <td data-label="转存时间">${formatDateTime(task.lastFileUpdateTime)}</td>
+                    <td data-label="转存时间" style="font-size: 13px; color: #3b82f6; font-weight: 500;">${formatDateTime(task.lastFileUpdateTime)}</td>
                     <td data-label="备注">${task.remark?task.remark:''}</td>
                     <td data-label="状态"><span class="status-badge status-${task.status}">${formatStatus(task.status)}</span></td>
                 </tr>

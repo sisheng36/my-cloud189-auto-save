@@ -48,6 +48,7 @@ class TelegramBotService {
         this.tmdbBindTaskId = null;  // 待绑定的任务ID
         this.tmdbBindType = 'tv';    // 搜索类型 tv/movie
         this.tmdbSearchResultsCache = []; // 搜索结果缓存
+        this.tmdbTitleCache = new Map(); // TMDB ID → Title 缓存（避免callback_data过长）
     }
 
     async start() {
@@ -1158,18 +1159,20 @@ class TelegramBotService {
         const title = item.title || item.name;
         const tmdbId = item.id;
         const tp = data.tp;
+        // 缓存 title 避免 callback_data 过长
+        this.tmdbTitleCache.set(tmdbId, title);
         if (tp === 'tv') {
-            // 剧集类：进入选季数步骤
+            // 剧集类：进入选季数步骤（callback_data 不包含 title，避免超64字节）
             const seasonBtns = [1, 2, 3, 4, 5, 6].map(s => ({
                 text: `第${s}季`,
-                callback_data: JSON.stringify({ t: 'tse', s, id: tmdbId, tp, ti: data.ti, title })
+                callback_data: JSON.stringify({ t: 'tse', s, id: tmdbId, tp, ti: data.ti })
             }));
             const rows = [];
             for (let i = 0; i < seasonBtns.length; i += 3) rows.push(seasonBtns.slice(i, i + 3));
-            rows.push([{ text: '🤖 自动识别季数', callback_data: JSON.stringify({ t: 'tse', s: null, id: tmdbId, tp, ti: data.ti, title }) }]);
+            rows.push([{ text: '🤖 自动识别季数', callback_data: JSON.stringify({ t: 'tse', s: null, id: tmdbId, tp, ti: data.ti }) }]);
             rows.push([{ text: '❌ 取消', callback_data: JSON.stringify({ t: 'fc' }) }]);
             await this.bot.editMessageText(
-                `✅ 已选择：《${title}》 (TMDB: ${tmdbId})\n\n📅 请选择季数（不确定可选“自动识别”）：`,
+                `✅ 已选择：《${title}》 (TMDB: ${tmdbId})\n\n📅 请选择季数（不确定可选”自动识别”）：`,
                 { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: rows } }
             );
         } else {
@@ -1180,7 +1183,9 @@ class TelegramBotService {
 
     // 用户选了季数，执行最终绑定
     async _selectTmdbSeason(chatId, data, messageId) {
-        await this._doBindTmdb(chatId, messageId, data.ti, data.id, data.tp, data.title, data.s);
+        // 从缓存获取 title，避免 callback_data 过长
+        const title = this.tmdbTitleCache.get(data.id) || '未知';
+        await this._doBindTmdb(chatId, messageId, data.ti, data.id, data.tp, title, data.s);
     }
 
     // 实际调用API绑定TMDB并触发重命名
