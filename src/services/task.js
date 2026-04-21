@@ -959,7 +959,7 @@ class TaskService {
                                 const realBaseName = getBaseNameWithoutExt(realFileName);
                                 if (existingBaseNames.has(realBaseName) || currentFileNames.has(realFileName)) {
                                     result.message = '已存在（去后缀匹配），跳过秒传';
-                                    result.success = true; // 标记成功但不执行秒传
+                                    result.skipped = true; // 标记为跳过，不计入成功数
                                     return result;
                                 }
 
