@@ -320,13 +320,49 @@ class Cloud189Service {
         }
     }
 
-    // 家庭接口秒传（三步：init + check + commit）
+    // 家庭接口秒传（三步：init + check + commit），各步骤均有 403 重试
     async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
+        const maxRetries = 5;  // 最大重试次数
+        const baseDelay = 3000;  // 基础延迟 3秒
+
+        // 通用重试请求函数（403 指数退避）
+        const retryRequest = async (requestInfo, stepName, currentRetryKey = null) => {
+            let retryCount = 0;
+            while (retryCount < maxRetries) {
+                try {
+                    const gotLib = require('got');
+                    const proxyUrl = ProxyUtil.getProxy('cloud189');
+                    const opts = { headers: requestInfo.headers };
+                    if (proxyUrl) {
+                        const { HttpsProxyAgent } = require('https-proxy-agent');
+                        opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
+                    }
+                    const result = await gotLib(requestInfo.url, opts).json();
+                    return result;
+                } catch (e) {
+                    retryCount++;
+                    const statusCode = e?.response?.statusCode || '';
+                    if (statusCode === 403 && retryCount < maxRetries) {
+                        // 指数退避: 3s → 5s → 8s → 12s → 20s
+                        const delay = baseDelay * Math.pow(1.5, retryCount - 1);
+                        logTaskEvent(`[家庭中转] ${stepName} 403，第${retryCount}次重试，等待 ${Math.round(delay)}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        // 刷新加密密钥（可能过期）
+                        if (currentRetryKey === 'rsa') this._rsaKey = null;
+                        if (currentRetryKey === 'session') this._sessionKey = null;
+                        continue;
+                    }
+                    throw new Error(`家庭${stepName}失败: ${e.message}`);
+                }
+            }
+            throw new Error(`家庭${stepName}失败: 重试次数耗尽`);
+        };
+
         try {
             const sliceSize = this._partSize(fileSize);
             logTaskEvent(`[家庭中转] 开始秒传至家庭空间: ${fileName}, 目录ID: ${familyFolderId || '根目录'}`);
 
-            // 第1步: 初始化（家庭接口）
+            // 第1步: 初始化（家庭接口）- 增加重试
             const rsaKey = await this._getRsaKey();
             const sessionKey = await this._getSessionKey();
             const initParams = {
@@ -339,81 +375,35 @@ class Cloud189Service {
             initParams.lazyCheck = '1';
             const initUri = '/family/initMultiUpload';
             const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
-            let initResult;
-            try {
-                const gotLib = require('got');
-                const proxyUrl = ProxyUtil.getProxy('cloud189');
-                const opts = { headers: initReq.headers };
-                if (proxyUrl) {
-                    const { HttpsProxyAgent } = require('https-proxy-agent');
-                    opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
-                }
-                initResult = await gotLib(initReq.url, opts).json();
-            } catch (e) {
-                throw new Error(`家庭initMultiUpload失败: ${e.message}`);
-            }
+            const initResult = await retryRequest(initReq, 'initMultiUpload', 'rsa');
+
             if (initResult.errorCode) throw new Error(initResult.errorMsg || initResult.errorCode);
             if (initResult.code && initResult.code !== 'SUCCESS') throw new Error(initResult.msg || '初始化失败');
 
             const uploadFileId = initResult.data?.uploadFileId;
             if (!uploadFileId) throw new Error('家庭初始化上传失败: 缺少uploadFileId');
 
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
 
-            // 第2步: 检查秒传（家庭接口）
+            // 第2步: 检查秒传（家庭接口）- 增加重试
             const checkUri = '/family/checkTransSecond';
             const checkParams = { fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), uploadFileId: String(uploadFileId) };
             const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, rsaKey, sessionKey);
-            let checkResult;
-            try {
-                const gotLib = require('got');
-                const proxyUrl = ProxyUtil.getProxy('cloud189');
-                const opts = { headers: checkReq.headers };
-                if (proxyUrl) {
-                    const { HttpsProxyAgent } = require('https-proxy-agent');
-                    opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
-                }
-                checkResult = await gotLib(checkReq.url, opts).json();
-            } catch (e) {
-                throw new Error(`家庭checkTransSecond失败: ${e.message}`);
-            }
+            const checkResult = await retryRequest(checkReq, 'checkTransSecond', 'session');
+
             if (checkResult.errorCode) throw new Error(checkResult.errorMsg || checkResult.errorCode);
             if (checkResult.code && checkResult.code !== 'SUCCESS') throw new Error(checkResult.msg || '秒传检查失败');
             const fileDataExists = checkResult.data?.fileDataExists;
             if (fileDataExists != 1) throw new Error('文件不存在于云端，无法秒传（家庭接口）');
 
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
 
-            // 第3步: 提交（家庭接口），含重试
+            // 第3步: 提交（家庭接口）- 增加重试
             const commitUri = '/family/commitMultiUploadFile';
             const commitParams = { uploadFileId: String(uploadFileId), fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), lazyCheck: '1', opertype: '3' };
             const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, rsaKey, sessionKey);
-            let commitResult;
-            let retryCount = 0;
-            const maxRetries = 3;
-            while (retryCount < maxRetries) {
-                try {
-                    const gotLib = require('got');
-                    const proxyUrl = ProxyUtil.getProxy('cloud189');
-                    const opts = { headers: commitReq.headers };
-                    if (proxyUrl) {
-                        const { HttpsProxyAgent } = require('https-proxy-agent');
-                        opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
-                    }
-                    commitResult = await gotLib(commitReq.url, opts).json();
-                    break;
-                } catch (e) {
-                    retryCount++;
-                    const statusCode = e?.response?.statusCode || '';
-                    if (statusCode === 403 && retryCount < maxRetries) {
-                        logTaskEvent(`[家庭中转] commitMultiUpload 403，第${retryCount}次重试...`);
-                        await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
-                        this._rsaKey = null;
-                        continue;
-                    }
-                    throw new Error(`家庭commitMultiUpload失败: ${e.message}`);
-                }
-            }
+            const commitResult = await retryRequest(commitReq, 'commitMultiUpload', 'rsa');
+
             if (commitResult.errorCode) throw new Error(commitResult.errorMsg || commitResult.errorCode);
             if (commitResult.code && commitResult.code !== 'SUCCESS') throw new Error(commitResult.msg || '提交失败');
 
@@ -1012,15 +1002,46 @@ class Cloud189Service {
         }
     }
 
-    // 秒传主方法：通过 CAS 信息进行秒传
+    // 秒传主方法：通过 CAS 信息进行秒传（含全步骤 403 重试）
     // 流程参考 OpenList-CAS: initMultiUpload → (可选 checkTransSecond) → commitMultiUploadFile
     async rapidUpload(fileName, fileSize, fileMd5, sliceMd5, parentFolderId) {
+        const maxRetries = 5;  // 最大重试次数
+        const baseDelay = 3000;  // 基础延迟 3秒
+
+        // 通用重试函数（403 指数退避）
+        const retryWithBackoff = async (fn, stepName) => {
+            let retryCount = 0;
+            while (retryCount < maxRetries) {
+                try {
+                    return await fn();
+                } catch (error) {
+                    if (error.isBlacklisted) throw error;  // 黑名单文件不重试
+                    retryCount++;
+                    const statusCode = error?.response?.statusCode || '';
+                    if ((statusCode === 403 || error.message?.includes('403')) && retryCount < maxRetries) {
+                        // 指数退避: 3s → 5s → 8s → 12s → 20s
+                        const delay = baseDelay * Math.pow(1.5, retryCount - 1);
+                        logTaskEvent(`[CAS秒传] ${stepName} 403，第 ${retryCount} 次重试，等待 ${Math.round(delay)}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        this._rsaKey = null;  // 刷新密钥
+                        this._sessionKey = null;
+                        continue;
+                    }
+                    throw error;
+                }
+            }
+            throw new Error(`${stepName} 重试次数耗尽`);
+        };
+
         try {
             const sliceSize = this._partSize(fileSize);
             logTaskEvent(`[CAS秒传] 开始: ${fileName}, 大小: ${fileSize}, MD5: ${fileMd5}`);
 
-            // 第1步: 初始化分片上传
-            const initResult = await this.initMultiUpload(parentFolderId, fileName, fileSize, sliceSize, fileMd5, sliceMd5);
+            // 第1步: 初始化分片上传（含重试）
+            const initResult = await retryWithBackoff(
+                () => this.initMultiUpload(parentFolderId, fileName, fileSize, sliceSize, fileMd5, sliceMd5),
+                'initMultiUpload'
+            );
             if (initResult.errorCode) {
                 throw new Error(initResult.errorMsg || initResult.errorCode);
             }
@@ -1034,14 +1055,17 @@ class Cloud189Service {
             }
 
             // 步骤间延迟，避免请求过快被限流
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
             // 检查 initMultiUpload 返回的 fileDataExists
             // 如果 fileDataExists == 1，说明云端已有该文件数据，可以直接 commit
             const fileDataExistsFromInit = initResult.data?.fileDataExists;
             if (fileDataExistsFromInit == null || fileDataExistsFromInit == 0) {
-                // 第2步: 需要单独检查秒传
-                const checkResult = await this.checkTransSecond(fileMd5, sliceMd5, uploadFileId);
+                // 第2步: 需要单独检查秒传（含重试）
+                const checkResult = await retryWithBackoff(
+                    () => this.checkTransSecond(fileMd5, sliceMd5, uploadFileId),
+                    'checkTransSecond'
+                );
                 if (checkResult.errorCode) {
                     throw new Error(checkResult.errorMsg || checkResult.errorCode);
                 }
@@ -1055,32 +1079,13 @@ class Cloud189Service {
             }
 
             // 步骤间延迟，避免请求过快被限流
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // 第3步: 提交上传（含 403 重试）
-            let commitResult;
-            let retryCount = 0;
-            const maxRetries = 3;
-            while (retryCount < maxRetries) {
-                try {
-                    commitResult = await this.commitMultiUpload(uploadFileId, fileMd5, sliceMd5);
-                    break; // 成功则跳出
-                } catch (error) {
-                    if (error.isBlacklisted) {
-                        throw error;
-                    }
-                    retryCount++;
-                    if (error.message && error.message.includes('403') && retryCount < maxRetries) {
-                        const delay = retryCount * 2000; // 2s, 4s, 6s 递增延迟
-                        logTaskEvent(`[CAS秒传] commitMultiUpload 403，第 ${retryCount} 次重试，等待 ${delay}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        // 重试前刷新 RSA 密钥
-                        this._rsaKey = null;
-                        continue;
-                    }
-                    throw error;
-                }
-            }
+            // 第3步: 提交上传（含重试）
+            const commitResult = await retryWithBackoff(
+                () => this.commitMultiUpload(uploadFileId, fileMd5, sliceMd5),
+                'commitMultiUpload'
+            );
             if (commitResult.errorCode) {
                 throw new Error(commitResult.errorMsg || commitResult.errorCode);
             }
