@@ -516,7 +516,10 @@ function initTaskForm() {
                 document.getElementById('taskForm').reset();
                 document.getElementById('targetFolderId').value = body.targetFolderId;
                 const ids = data.data.map(item => item.id);
-                Promise.all(ids.map(id => executeTask(id, false)));
+                // 串行执行任务，避免多任务并发导致总并发超限（家庭接口限流）
+                for (const id of ids) {
+                    await executeTask(id, false);
+                }
                 message.success('任务创建完成, 正在执行中, 请稍后查看结果');
                 setTimeout(() => {
                     fetchTasks(); 
