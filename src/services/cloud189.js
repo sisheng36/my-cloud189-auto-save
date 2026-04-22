@@ -320,13 +320,14 @@ class Cloud189Service {
         }
     }
 
-    // 家庭接口秒传（三步：init + check + commit），各步骤均有 403 重试
+    // 家庭接口秒传（三步：init + check + commit），使用正确的家庭签名体系
+    // 关键：使用 familySessionKey + familySessionSecret，而非个人RSA体系
     async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
         const maxRetries = 5;  // 最大重试次数
         const baseDelay = 3000;  // 基础延迟 3秒
 
         // 通用重试请求函数（403 指数退避）
-        const retryRequest = async (requestInfo, stepName, currentRetryKey = null) => {
+        const retryRequest = async (requestInfo, stepName) => {
             let retryCount = 0;
             while (retryCount < maxRetries) {
                 try {
@@ -347,9 +348,9 @@ class Cloud189Service {
                         const delay = baseDelay * Math.pow(1.5, retryCount - 1);
                         logTaskEvent(`[家庭中转] ${stepName} 403，第${retryCount}次重试，等待 ${Math.round(delay)}ms...`);
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        // 刷新加密密钥（可能过期）
-                        if (currentRetryKey === 'rsa') this._rsaKey = null;
-                        if (currentRetryKey === 'session') this._sessionKey = null;
+                        // 刷新家庭会话密钥（可能过期）
+                        this._familySessionKey = null;
+                        this._familySessionSecret = null;
                         continue;
                     }
                     throw new Error(`家庭${stepName}失败: ${e.message}`);
@@ -362,20 +363,22 @@ class Cloud189Service {
             const sliceSize = this._partSize(fileSize);
             logTaskEvent(`[家庭中转] 开始秒传至家庭空间: ${fileName}, 目录ID: ${familyFolderId || '根目录'}`);
 
-            // 第1步: 初始化（家庭接口）- 增加重试
-            const rsaKey = await this._getRsaKey();
-            const sessionKey = await this._getSessionKey();
+            // 获取家庭会话密钥（关键！使用 familySessionKey + familySessionSecret）
+            const { familySessionKey, familySessionSecret } = await this._getFamilySessionKeys();
+            logTaskEvent(`[家庭中转] 使用家庭签名体系（familySessionKey）`);
+
+            // 第1步: 初始化（家庭接口）- 使用家庭签名
             const initParams = {
                 parentFolderId: String(familyFolderId || ''),
                 familyId: String(familyId),
                 fileName: encodeURIComponent(fileName),
                 fileSize: String(fileSize),
-                sliceSize: String(sliceSize)
+                sliceSize: String(sliceSize),
+                lazyCheck: '1'
             };
-            initParams.lazyCheck = '1';
             const initUri = '/family/initMultiUpload';
-            const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
-            const initResult = await retryRequest(initReq, 'initMultiUpload', 'rsa');
+            const initReq = UploadCryptoUtils.buildFamilyUploadRequest(initParams, initUri, familySessionKey, familySessionSecret);
+            const initResult = await retryRequest(initReq, 'initMultiUpload');
 
             if (initResult.errorCode) throw new Error(initResult.errorMsg || initResult.errorCode);
             if (initResult.code && initResult.code !== 'SUCCESS') throw new Error(initResult.msg || '初始化失败');
@@ -385,11 +388,11 @@ class Cloud189Service {
 
             await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
 
-            // 第2步: 检查秒传（家庭接口）- 增加重试
+            // 第2步: 检查秒传（家庭接口）
             const checkUri = '/family/checkTransSecond';
             const checkParams = { fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), uploadFileId: String(uploadFileId) };
-            const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, rsaKey, sessionKey);
-            const checkResult = await retryRequest(checkReq, 'checkTransSecond', 'session');
+            const checkReq = UploadCryptoUtils.buildFamilyUploadRequest(checkParams, checkUri, familySessionKey, familySessionSecret);
+            const checkResult = await retryRequest(checkReq, 'checkTransSecond');
 
             if (checkResult.errorCode) throw new Error(checkResult.errorMsg || checkResult.errorCode);
             if (checkResult.code && checkResult.code !== 'SUCCESS') throw new Error(checkResult.msg || '秒传检查失败');
@@ -398,11 +401,11 @@ class Cloud189Service {
 
             await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
 
-            // 第3步: 提交（家庭接口）- 增加重试
+            // 第3步: 提交（家庭接口）
             const commitUri = '/family/commitMultiUploadFile';
             const commitParams = { uploadFileId: String(uploadFileId), fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), lazyCheck: '1', opertype: '3' };
-            const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, rsaKey, sessionKey);
-            const commitResult = await retryRequest(commitReq, 'commitMultiUpload', 'rsa');
+            const commitReq = UploadCryptoUtils.buildFamilyUploadRequest(commitParams, commitUri, familySessionKey, familySessionSecret);
+            const commitResult = await retryRequest(commitReq, 'commitMultiUpload');
 
             if (commitResult.errorCode) throw new Error(commitResult.errorMsg || commitResult.errorCode);
             if (commitResult.code && commitResult.code !== 'SUCCESS') throw new Error(commitResult.msg || '提交失败');
@@ -890,6 +893,52 @@ class Cloud189Service {
             }
         } catch (e) {}
         return headers;
+    }
+
+    /**
+     * 获取家庭会话密钥（familySessionKey + familySessionSecret）
+     * 这是家庭接口秒传的关键！SDK 的 getSession() 会返回这些密钥。
+     * 参考OpenList-CAS: 家庭接口使用不同的密钥体系，而非个人RSA
+     */
+    async _getFamilySessionKeys() {
+        // 优先使用缓存
+        if (this._familySessionKey && this._familySessionSecret) {
+            return {
+                familySessionKey: this._familySessionKey,
+                familySessionSecret: this._familySessionSecret
+            };
+        }
+
+        try {
+            // SDK的getSession()返回 TokenSession，包含 familySessionKey 和 familySessionSecret
+            const session = await this.client.getSession();
+            if (session && session.familySessionKey && session.familySessionSecret) {
+                this._familySessionKey = session.familySessionKey;
+                this._familySessionSecret = session.familySessionSecret;
+                logTaskEvent(`[家庭中转] 获取家庭会话密钥成功`);
+                return {
+                    familySessionKey: this._familySessionKey,
+                    familySessionSecret: this._familySessionSecret
+                };
+            }
+        } catch (e) {
+            logTaskEvent('获取家庭会话密钥失败: ' + e.message);
+        }
+
+        // 回退方案：尝试从 tokenStore 读取
+        try {
+            const token = this.client.tokenStore?.load?.();
+            if (token?.familySessionKey && token?.familySessionSecret) {
+                this._familySessionKey = token.familySessionKey;
+                this._familySessionSecret = token.familySessionSecret;
+                return {
+                    familySessionKey: this._familySessionKey,
+                    familySessionSecret: this._familySessionSecret
+                };
+            }
+        } catch (e) {}
+
+        throw new Error('无法获取家庭会话密钥（familySessionKey/familySessionSecret），请检查账号是否有家庭空间');
     }
 
     // 获取 RSA 公钥（缓存5分钟）

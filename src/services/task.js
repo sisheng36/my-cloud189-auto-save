@@ -1035,11 +1035,29 @@ class TaskService {
 
                                     if (enableCasFamilyTransfer) {
                                         logTaskEvent(`[CAS] 并发处理: ${realFileName} - 家庭中转秒传`);
-                                        // 懒加载家庭信息
-                                        if (!this._casFamilyInfo) {
-                                            this._casFamilyInfo = await cloud189.getFamilyInfo();
+
+                                        // 多账号家庭中转支持：优先使用任务指定的家庭账号
+                                        let familyCloud189 = cloud189;
+                                        let familyAccountForTransfer = account;
+
+                                        // 如果任务指定了家庭中转账号ID，使用该账号的家庭空间
+                                        if (task.casFamilyAccountId && task.casFamilyAccountId !== task.accountId) {
+                                            const familyAccount = await this.accountRepo.findOneBy({ id: task.casFamilyAccountId });
+                                            if (familyAccount) {
+                                                familyAccountForTransfer = familyAccount;
+                                                familyCloud189 = Cloud189Service.getInstance(familyAccount);
+                                                logTaskEvent(`[家庭中转] 使用指定账号(${familyAccount.username})的家庭空间进行中转`);
+                                            } else {
+                                                logTaskEvent(`[家庭中转] 指定的家庭账号ID(${task.casFamilyAccountId})不存在，回退使用任务账号`);
+                                            }
+                                        }
+
+                                        // 懒加载家庭信息（使用家庭账号的 cloud189 实例）
+                                        if (!this._casFamilyInfo || this._casFamilyAccountId !== familyAccountForTransfer.id) {
+                                            this._casFamilyInfo = await familyCloud189.getFamilyInfo();
+                                            this._casFamilyAccountId = familyAccountForTransfer.id;
                                             if (this._casFamilyInfo) {
-                                                logTaskEvent(`[家庭中转] 家庭ID: ${this._casFamilyInfo.familyId}`);
+                                                logTaskEvent(`[家庭中转] 家庭ID: ${this._casFamilyInfo.familyId}, 账号: ${familyAccountForTransfer.username}`);
                                             }
                                         }
                                         if (this._casFamilyInfo) {
@@ -1049,12 +1067,12 @@ class TaskService {
                                             if (!familyFolderId) {
                                                 // 未指定目录时，在家庭根目录下创建临时目录
                                                 if (!this._casFamilyRootFolderId) {
-                                                    this._casFamilyRootFolderId = await cloud189.getFamilyRootFolderId(familyId);
+                                                    this._casFamilyRootFolderId = await familyCloud189.getFamilyRootFolderId(familyId);
                                                 }
                                                 // 创建临时目录（仅首次）
                                                 if (!casTempFolderCreated && this._casFamilyRootFolderId) {
                                                     const tempFolderName = `CAS临时_${Date.now()}`;
-                                                    const createResult = await cloud189.createFamilyFolder(familyId, tempFolderName, this._casFamilyRootFolderId);
+                                                    const createResult = await familyCloud189.createFamilyFolder(familyId, tempFolderName, this._casFamilyRootFolderId);
                                                     if (createResult.success && createResult.folderId) {
                                                         casFamilyFolderIdActual = createResult.folderId;
                                                         casTempFolderCreated = true;
@@ -1068,14 +1086,15 @@ class TaskService {
                                                 familyFolderId = casFamilyFolderIdActual || this._casFamilyRootFolderId;
                                             }
 
-                                            const familyResult = await cloud189.familyRapidUpload(
+                                            // 使用家庭账号的 cloud189 实例进行秒传
+                                            const familyResult = await familyCloud189.familyRapidUpload(
                                                 realFileName, parseInt(parsed.size),
                                                 parsed.md5.toUpperCase(), parsed.slice_md5.toUpperCase(),
                                                 familyId, familyFolderId
                                             );
 
                                             if (familyResult.success && familyResult.familyFileId) {
-                                                // 不再记录单个文件用于清理，最后统一清空目录
+                                                // 转存到任务账号的个人目录（使用任务账号的 cloud189）
                                                 const saveResult = await cloud189.saveFamilyFileToPersonal(
                                                     familyId, familyResult.familyFileId, task.realFolderId, familyFolderId, realFileName
                                                 );
@@ -1168,21 +1187,30 @@ class TaskService {
                             // 最终统计
                             logTaskEvent(`[CAS] 处理完成，成功 ${successCount}，跳过 ${skippedCount}，失败 ${failedCount}`);
 
-                            // 清理家庭中转目录（整体清理）
+                            // 清理家庭中转目录（整体清理）- 使用家庭账号的 cloud189 实例
                             if (enableDeleteFamilyTempFile && this._casFamilyInfo && casFamilyFolderIdActual) {
                                 try {
+                                    // 获取家庭账号的 cloud189 实例（用于清理）
+                                    let cleanupCloud189 = cloud189;
+                                    if (task.casFamilyAccountId && task.casFamilyAccountId !== task.accountId) {
+                                        const familyAccount = await this.accountRepo.findOneBy({ id: task.casFamilyAccountId });
+                                        if (familyAccount) {
+                                            cleanupCloud189 = Cloud189Service.getInstance(familyAccount);
+                                        }
+                                    }
+
                                     // 如果是自动创建的临时目录，直接删除整个目录
                                     if (casTempFolderCreated) {
                                         logTaskEvent(`[家庭中转] 删除自动创建的临时目录...`);
-                                        await cloud189.deleteFamilyFolder(this._casFamilyInfo.familyId, casFamilyFolderIdActual, `CAS临时目录`);
+                                        await cleanupCloud189.deleteFamilyFolder(this._casFamilyInfo.familyId, casFamilyFolderIdActual, `CAS临时目录`);
                                     } else {
                                         // 用户指定的目录，只清空内容
                                         logTaskEvent(`[家庭中转] 清空用户指定的中转目录...`);
-                                        await cloud189.clearFamilyFolder(this._casFamilyInfo.familyId, casFamilyFolderIdActual);
+                                        await cleanupCloud189.clearFamilyFolder(this._casFamilyInfo.familyId, casFamilyFolderIdActual);
                                     }
                                     // 清空家庭回收站释放配额
                                     logTaskEvent(`[家庭中转] 清空家庭回收站释放配额...`);
-                                    await cloud189.request('/api/open/batch/createBatchTask.action', {
+                                    await cleanupCloud189.request('/api/open/batch/createBatchTask.action', {
                                         method: 'POST',
                                         form: {
                                             type: 'EMPTY_RECYCLE',

@@ -211,6 +211,11 @@ export class Task {
     // 是否是文件夹
     @Column('boolean', { nullable: true, default: true })
     isFolder!: boolean;
+
+    // CAS家庭中转账号ID（如果不指定，默认使用任务账号）
+    // 用于多账号场景：当任务账号没有家庭空间时，可选择其他账号的家庭空间进行中转
+    @Column('integer', { nullable: true })
+    casFamilyAccountId!: number;
 }
 
 // 常用目录表
