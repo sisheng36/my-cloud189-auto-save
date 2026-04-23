@@ -1,5 +1,5 @@
 # 使用Node.js v16.19.0作为基础镜像
-FROM node:16.19.0-slim AS builder
+FROM node:20-slim AS builder
 
 # 设置工作目录
 WORKDIR /home
