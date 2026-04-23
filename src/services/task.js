@@ -1104,25 +1104,43 @@ class TaskService {
 
                             // 1. 转存这批CAS文件
                             let transferSuccess = false;
-                            try {
-                                const casTaskInfoList = batchFiles.map(f => ({
-                                    fileId: f.id,
-                                    fileName: f.name,
-                                    isFolder: 0,
-                                    md5: f.md5,
-                                }));
-                                const casBatchTask = new BatchTaskDto({
-                                    taskInfos: JSON.stringify(casTaskInfoList),
-                                    type: 'SHARE_SAVE',
-                                    targetFolderId: task.realFolderId,
-                                    shareId: task.shareId
-                                });
-                                await this.createBatchTask(cloud189, casBatchTask);
-                                logTaskEvent(`[CAS] ${batchFiles.length} 个CAS文件转存完成`);
-                                await new Promise(resolve => setTimeout(resolve, 1000));
-                                transferSuccess = true;
-                            } catch (error) {
-                                logTaskEvent(`[CAS] 批量转存失败: ${error.message}`);
+                            let retryCount = 0;
+                            const MAX_TRANSFER_RETRY = 3;
+
+                            while (!transferSuccess && retryCount < MAX_TRANSFER_RETRY) {
+                                try {
+                                    const casTaskInfoList = batchFiles.map(f => ({
+                                        fileId: f.id,
+                                        fileName: f.name,
+                                        isFolder: 0,
+                                        md5: f.md5,
+                                    }));
+                                    const casBatchTask = new BatchTaskDto({
+                                        taskInfos: JSON.stringify(casTaskInfoList),
+                                        type: 'SHARE_SAVE',
+                                        targetFolderId: task.realFolderId,
+                                        shareId: task.shareId
+                                    });
+                                    await this.createBatchTask(cloud189, casBatchTask);
+                                    logTaskEvent(`[CAS] ${batchFiles.length} 个CAS文件转存完成`);
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                    transferSuccess = true;
+                                } catch (error) {
+                                    const errorMsg = error.message || '';
+                                    // 检测API队列堵塞
+                                    if (errorMsg.includes('ShareSaveTaskIsAlreadyExist') || errorMsg.includes('BatchOperFileFailed')) {
+                                        retryCount++;
+                                        logTaskEvent(`[CAS] 批量任务队列堵塞，等待5秒后重试(${retryCount}/${MAX_TRANSFER_RETRY})...`);
+                                        await new Promise(resolve => setTimeout(resolve, 5000));
+                                    } else {
+                                        // 其他错误，直接失败
+                                        logTaskEvent(`[CAS] 批量转存失败: ${error.message}`);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!transferSuccess) {
                                 // 转存失败，更新重试计数
                                 for (const file of batchFiles) {
                                     const currentRetry = fileRetryCount.get(file.id) || 0;
@@ -1227,14 +1245,22 @@ class TaskService {
                                 await new Promise(resolve => setTimeout(resolve, FILE_DELAY));
                             }
 
-                            // 4. 清理本批次已处理的CAS文件
-                            const processedCasFiles = savedCasFiles.filter(f => batchFileIds.includes(finalCasFilesToTransfer.find(cas => cas.name === f.name)?.id));
-                            for (const casFile of processedCasFiles) {
-                                try {
-                                    await cloud189.deleteFile(casFile.id);
-                                } catch (e) {
-                                    logTaskEvent(`[CAS] 删除CAS文件失败: ${e.message}`);
+                            // 4. 清理目标目录所有CAS文件（包括本批次和之前残留的）
+                            try {
+                                const currentFolderFiles = await this.getAllFolderFiles(cloud189, task);
+                                const allCasFilesInTarget = currentFolderFiles.filter(f => CasUtils.isCasFile(f.name));
+                                if (allCasFilesInTarget.length > 0) {
+                                    logTaskEvent(`[CAS] 清理目标目录 ${allCasFilesInTarget.length} 个CAS文件...`);
+                                    for (const casFile of allCasFilesInTarget) {
+                                        try {
+                                            await cloud189.deleteFile(casFile.id);
+                                        } catch (e) {
+                                            logTaskEvent(`[CAS] 删除CAS文件失败(${casFile.name}): ${e.message}`);
+                                        }
+                                    }
                                 }
+                            } catch (e) {
+                                logTaskEvent(`[CAS] 清理CAS文件异常: ${e.message}`);
                             }
 
                             // 5. 清空sessionKey让配额恢复
