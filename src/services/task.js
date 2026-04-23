@@ -750,8 +750,18 @@ class TaskService {
 
     // 执行任务
     async processTask(task) {
+        // 检查任务状态，防止并发重复执行
+        if (task.status === 'processing') {
+            logTaskEvent(`任务[${task.resourceName}/${task.shareFolderName || ''}]正在执行中，跳过本次触发`);
+            return null;
+        }
+
         let saveResults = [];
         try {
+            // 立即将状态更新为 processing，防止其他并发请求重复执行
+            task.status = 'processing';
+            await this.taskRepo.save(task);
+
             const account = await this.accountRepo.findOneBy({ id: task.accountId });
             if (!account) {
                 logTaskEvent(`账号不存在，accountId: ${task.accountId}`);
