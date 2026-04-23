@@ -999,15 +999,6 @@ class TaskService {
                             // ====== 串行处理 CAS 文件 ======
                             logTaskEvent(`[CAS] 开始串行秒传`);
 
-                            // 预先获取家庭账号的 cloud189 实例（用于刷新密钥）
-                            let familyCloud189ForRefresh = cloud189;
-                            if (enableCasFamilyTransfer && task.casFamilyAccountId && task.casFamilyAccountId !== task.accountId) {
-                                const familyAccount = await this.accountRepo.findOneBy({ id: task.casFamilyAccountId });
-                                if (familyAccount) {
-                                    familyCloud189ForRefresh = Cloud189Service.getInstance(familyAccount);
-                                }
-                            }
-
                             const processCasFile = async (casFile) => {
                                 const result = { casFile, savedFile: null, realFileName: null, success: false, message: '', familyFileIdForCleanup: null };
                                 try {
@@ -1143,7 +1134,7 @@ class TaskService {
                             };
 
                             // ====== 串行处理（避免403限流）======
-                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件，每文件处理前刷新会话密钥`);
+                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件`);
 
                             // 统计计数器
                             let completedCount = 0;
@@ -1153,12 +1144,6 @@ class TaskService {
 
                             for (const casFile of finalCasFilesToTransfer) {
                                 try {
-                                    // 每个文件处理前刷新家庭会话密钥（第1个文件除外）
-                                    if (enableCasFamilyTransfer && completedCount > 0) {
-                                        logTaskEvent(`[家庭中转] 第${completedCount + 1}个文件处理前，刷新会话密钥...`);
-                                        await familyCloud189ForRefresh.refreshFamilySessionKeys();
-                                    }
-
                                     const result = await processCasFile(casFile);
 
                                     // 处理结果

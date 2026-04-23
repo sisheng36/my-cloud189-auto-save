@@ -320,53 +320,23 @@ class Cloud189Service {
         }
     }
 
-    // 家庭接口秒传（三步：init + check + commit），使用正确的家庭签名体系
-    // 关键：使用 familySessionKey + familySessionSecret，而非个人RSA体系
+    // 家庭接口秒传（三步：init + check + commit）
+    // 关键改动：改用个人RSA签名方式处理家庭接口（参考油猴脚本）
+    // 每次请求生成新的随机密钥，不会有密钥使用次数限制问题
     async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
         const maxRetries = 2;  // 最大重试次数（测试环境）
         const baseDelay = 3000;  // 固定延迟 3秒
-
-        // 通用重试请求函数（403 固定间隔重试）
-        const retryRequest = async (requestInfo, stepName) => {
-            let retryCount = 0;
-            while (retryCount < maxRetries) {
-                try {
-                    const gotLib = require('got');
-                    const proxyUrl = ProxyUtil.getProxy('cloud189');
-                    const opts = { headers: requestInfo.headers };
-                    if (proxyUrl) {
-                        const { HttpsProxyAgent } = require('https-proxy-agent');
-                        opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
-                    }
-                    const result = await gotLib(requestInfo.url, opts).json();
-                    return result;
-                } catch (e) {
-                    retryCount++;
-                    const statusCode = e?.response?.statusCode || '';
-                    if (statusCode === 403 && retryCount < maxRetries) {
-                        // 固定延迟 3秒
-                        logTaskEvent(`[家庭中转] ${stepName} 403，第${retryCount}次重试，等待 ${baseDelay}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, baseDelay));
-                        // 刷新家庭会话密钥（可能过期）
-                        this._familySessionKey = null;
-                        this._familySessionSecret = null;
-                        continue;
-                    }
-                    throw new Error(`家庭${stepName}失败: ${e.message}`);
-                }
-            }
-            throw new Error(`家庭${stepName}失败: 重试次数耗尽`);
-        };
 
         try {
             const sliceSize = this._partSize(fileSize);
             logTaskEvent(`[家庭中转] 开始秒传至家庭空间: ${fileName}, 目录ID: ${familyFolderId || '根目录'}`);
 
-            // 获取家庭会话密钥（关键！使用 familySessionKey + familySessionSecret）
-            const { familySessionKey, familySessionSecret } = await this._getFamilySessionKeys();
-            logTaskEvent(`[家庭中转] 使用家庭签名体系（familySessionKey）`);
+            // 使用个人RSA签名方式处理家庭接口（每次生成新随机密钥，无使用次数限制）
+            const rsaKey = await this._getRsaKey();
+            const sessionKey = await this._getSessionKey();
+            logTaskEvent(`[家庭中转] 使用个人RSA签名方式（每次新密钥）`);
 
-            // 第1步: 初始化（家庭接口）- 使用家庭签名
+            // 第1步: 初始化（家庭接口）
             const initParams = {
                 parentFolderId: String(familyFolderId || ''),
                 familyId: String(familyId),
@@ -376,8 +346,33 @@ class Cloud189Service {
                 lazyCheck: '1'
             };
             const initUri = '/family/initMultiUpload';
-            const initReq = UploadCryptoUtils.buildFamilyUploadRequest(initParams, initUri, familySessionKey, familySessionSecret);
-            const initResult = await retryRequest(initReq, 'initMultiUpload');
+            const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
+
+            const got = require('got');
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            const opts = { headers: initReq.headers };
+            if (proxyUrl) {
+                const { HttpsProxyAgent } = require('https-proxy-agent');
+                opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
+            }
+
+            let initResult;
+            try {
+                initResult = await got(initReq.url, opts).json();
+            } catch (e) {
+                if (e?.response?.statusCode === 403) {
+                    logTaskEvent(`[家庭中转] initMultiUpload 403，等待 ${baseDelay}ms 重试...`);
+                    await new Promise(resolve => setTimeout(resolve, baseDelay));
+                    // 刷新 RSA 密钥
+                    this._rsaKey = null;
+                    const rsaKey2 = await this._getRsaKey();
+                    const initReq2 = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey2, sessionKey);
+                    opts.headers = initReq2.headers;
+                    initResult = await got(initReq2.url, opts).json();
+                } else {
+                    throw new Error(`家庭initMultiUpload失败: ${e.message}`);
+                }
+            }
 
             if (initResult.errorCode) throw new Error(initResult.errorMsg || initResult.errorCode);
             if (initResult.code && initResult.code !== 'SUCCESS') throw new Error(initResult.msg || '初始化失败');
@@ -390,8 +385,15 @@ class Cloud189Service {
             // 第2步: 检查秒传（家庭接口）
             const checkUri = '/family/checkTransSecond';
             const checkParams = { fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), uploadFileId: String(uploadFileId) };
-            const checkReq = UploadCryptoUtils.buildFamilyUploadRequest(checkParams, checkUri, familySessionKey, familySessionSecret);
-            const checkResult = await retryRequest(checkReq, 'checkTransSecond');
+            const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, rsaKey, sessionKey);
+            opts.headers = checkReq.headers;
+
+            let checkResult;
+            try {
+                checkResult = await got(checkReq.url, opts).json();
+            } catch (e) {
+                throw new Error(`家庭checkTransSecond失败: ${e.message}`);
+            }
 
             if (checkResult.errorCode) throw new Error(checkResult.errorMsg || checkResult.errorCode);
             if (checkResult.code && checkResult.code !== 'SUCCESS') throw new Error(checkResult.msg || '秒传检查失败');
@@ -403,8 +405,15 @@ class Cloud189Service {
             // 第3步: 提交（家庭接口）
             const commitUri = '/family/commitMultiUploadFile';
             const commitParams = { uploadFileId: String(uploadFileId), fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), lazyCheck: '1', opertype: '3' };
-            const commitReq = UploadCryptoUtils.buildFamilyUploadRequest(commitParams, commitUri, familySessionKey, familySessionSecret);
-            const commitResult = await retryRequest(commitReq, 'commitMultiUpload');
+            const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, rsaKey, sessionKey);
+            opts.headers = commitReq.headers;
+
+            let commitResult;
+            try {
+                commitResult = await got(commitReq.url, opts).json();
+            } catch (e) {
+                throw new Error(`家庭commitMultiUpload失败: ${e.message}`);
+            }
 
             if (commitResult.errorCode) throw new Error(commitResult.errorMsg || commitResult.errorCode);
             if (commitResult.code && commitResult.code !== 'SUCCESS') throw new Error(commitResult.msg || '提交失败');
