@@ -507,7 +507,7 @@ function initTaskForm() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-    
+
             const data = await response.json();
             if (data.success) {
                 const targetFolderName = document.getElementById('targetFolder').value
@@ -517,24 +517,29 @@ function initTaskForm() {
                 document.getElementById('targetFolderId').value = body.targetFolderId;
                 const ids = data.data.map(item => item.id);
 
-                // 先关闭弹窗和显示成功消息，5秒后开始执行任务
+                // 先关闭弹窗和显示成功消息
                 closeCreateTaskModal();
-                message.success('任务创建完成，5秒后开始执行');
+                loading.hide();  // 提前隐藏loading，让用户可以操作
+
+                // 切换到任务tab并立即刷新任务列表
                 const tasksTab = document.querySelector('.tab[data-tab="tasks"]');
                 if (tasksTab) {
                     tasksTab.click();
                 }
+                // 立即刷新任务列表显示新创建的任务
+                await fetchTasks();
+                message.success('任务创建完成，5秒后开始执行');
 
-                // 5秒后串行执行任务
+                // 5秒后串行执行任务（后台执行，不阻塞界面）
                 setTimeout(async () => {
                     for (const id of ids) {
                         await executeTask(id, false);
                     }
-                    fetchTasks();
+                    fetchTasks();  // 执行完成后再次刷新
                 }, 5000);
             } else {
                 if (data.error == 'folder already exists') {
-                    if (confirm('该目录已经存在, 确定要覆盖吗?')) {
+                    if (confirm('该目录已经存在, 定要覆盖吗?')) {
                         body.overwriteFolder = 1
                         await createTask(e,body)
                     }
