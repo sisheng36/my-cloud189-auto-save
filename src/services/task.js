@@ -1261,9 +1261,23 @@ class TaskService {
                             for (const f of permanentlyFailedFiles) {
                                 logTaskEvent(`[CAS]   - ${f.name}: ${f.reason} (重试${f.retryCount}次)`);
                             }
+                            logTaskEvent(`[CAS] 💡 永久失败的文件将在下次手动执行时重新尝试`);
                         }
                         if (remainingFiles.length > 0) {
                             logTaskEvent(`[CAS] 未完成: ${totalRemaining}（将在下次任务执行时继续）`);
+                        }
+
+                        // ====== 检查视频文件数量是否匹配 ======
+                        try {
+                            const finalFolderFiles = await this.getAllFolderFiles(cloud189, task);
+                            const finalVideoCount = finalFolderFiles.filter(f => !CasUtils.isCasFile(f.name) && mediaExtensions.some(ext => f.name.toLowerCase().endsWith(ext))).length;
+                            const expectedVideoCount = existingMediaCount + totalSuccess;
+                            logTaskEvent(`[CAS] 视频文件检查: 预期${expectedVideoCount}个，实际${finalVideoCount}个`);
+                            if (finalVideoCount < expectedVideoCount) {
+                                logTaskEvent(`[CAS] ⚠️ 部分文件可能因版权限制无法秒传`);
+                            }
+                        } catch (e) {
+                            logTaskEvent(`[CAS] 视频文件检查失败: ${e.message}`);
                         }
 
                         // 清理家庭中转目录（整体清理）- 使用家庭账号的 cloud189 实例
