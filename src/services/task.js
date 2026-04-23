@@ -1138,8 +1138,9 @@ class TaskService {
 
                             // ====== 串行处理（避免403限流）======
                             // 2026-04-23: 家庭API有频率限制（约每分钟4-5次），增加冷却机制
+                            // 经过测试发现API限制是时间窗口限制（每分钟约允许4-5次请求）
                             const COOLDOWN_AFTER_FILES = 3;  // 每处理3个文件后冷却
-                            const COOLDOWN_DURATION = 3000;  // 冷却时间3秒
+                            const COOLDOWN_DURATION = 30000; // 冷却时间30秒（需足够长让API限制窗口过期）
                             const FILE_DELAY = 3000;  // 文件间延迟3秒
 
                             logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件（冷却策略：每${COOLDOWN_AFTER_FILES}个文件暂停${COOLDOWN_DURATION/1000}秒）`);
