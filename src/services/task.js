@@ -978,10 +978,9 @@ class TaskService {
                             });
                             await this.createBatchTask(cloud189, casBatchTask);
                             logTaskEvent(`[CAS] ${finalCasFilesToTransfer.length} 个 CAS 文件转存完成`);
-                            // 批量任务完成后等待更长时间，让API频率限制冷却
-                            // 批量任务API和家庭秒传API共享频率限制池，需要足够长的等待
-                            const BATCH_TO_RAPID_DELAY = 15000; // 15秒
-                            logTaskEvent(`[CAS] 批量转存完成，等待${BATCH_TO_RAPID_DELAY/1000}秒让API限制冷却...`);
+                            // 批量任务完成后等待，让API频率限制冷却
+                            const BATCH_TO_RAPID_DELAY = 1000; // 1秒
+                            logTaskEvent(`[CAS] 批量转存完成，等待1秒...`);
                             await new Promise(resolve => setTimeout(resolve, BATCH_TO_RAPID_DELAY));
                         } catch (error) {
                             logTaskEvent(`[CAS] 转存 CAS 文件失败: ${error.message}`);
@@ -1124,7 +1123,7 @@ class TaskService {
                             // 采用自动循环：每批最多4个成功，达到上限后刷新会话继续下一批
                             const MAX_SUCCESS_PER_BATCH = 3;  // 每批次最多成功秒传文件数（保险值）
                             const FILE_DELAY = 500;
-                            const BATCH_INTERVAL = 1000;  // 批次间间隔1秒
+                            const BATCH_INTERVAL = 3000;  // 批次间基础间隔（实际会重新SHARE_SAVE + 15秒等待）
 
                             logTaskEvent(`[CAS] 开始自动循环处理 ${finalCasFilesToTransfer.length} 个文件（每批最多${MAX_SUCCESS_PER_BATCH}个成功）`);
 
@@ -1192,16 +1191,61 @@ class TaskService {
                                 // 更新剩余文件（移除本批次已处理的）
                                 remainingFiles = remainingFiles.filter(f => !processedInBatch.includes(f));
 
-                                // 如果还有剩余文件且配额耗尽，刷新会话继续下一批
+                                // 如果还有剩余文件且配额耗尽，模拟手动执行：重新SHARE_SAVE
                                 if (remainingFiles.length > 0 && batchQuotaExhausted) {
-                                    logTaskEvent(`[CAS] 刷新会话配额，准备第${batchNumber + 1}批次...`);
-                                    // 清空缓存强制重新获取sessionKey
+                                    logTaskEvent(`[CAS] 模拟手动执行，准备第${batchNumber + 1}批次...`);
+
+                                    // 1. 删除目标目录中失败的 CAS 文件（准备重新转存）
+                                    try {
+                                        const targetFiles = await this.getAllFolderFiles(cloud189, task);
+                                        const failedCasNames = new Set(remainingFiles.map(f => f.name));
+                                        const failedCasFilesInTarget = targetFiles.filter(f =>
+                                            CasUtils.isCasFile(f.name) && failedCasNames.has(f.name)
+                                        );
+                                        if (failedCasFilesInTarget.length > 0) {
+                                            logTaskEvent(`[CAS] 删除 ${failedCasFilesInTarget.length} 个失败的 CAS 文件，准备重新转存...`);
+                                            for (const f of failedCasFilesInTarget) {
+                                                await cloud189.deleteFile(f.id);
+                                            }
+                                            // 等待删除生效
+                                            await new Promise(resolve => setTimeout(resolve, 3000));
+                                        }
+                                    } catch (e) {
+                                        logTaskEvent(`[CAS] 删除失败 CAS 文件异常: ${e.message}`);
+                                    }
+
+                                    // 2. 重新调用 SHARE_SAVE API（触发配额刷新的关键）
+                                    try {
+                                        const newCasTaskInfoList = remainingFiles.map(f => ({
+                                            fileId: f.id,
+                                            fileName: f.name,
+                                            isFolder: 0,
+                                            md5: f.md5,
+                                        }));
+                                        const newCasBatchTask = new BatchTaskDto({
+                                            taskInfos: JSON.stringify(newCasTaskInfoList),
+                                            type: 'SHARE_SAVE',
+                                            targetFolderId: task.realFolderId,
+                                            shareId: task.shareId
+                                        });
+                                        await this.createBatchTask(cloud189, newCasBatchTask);
+                                        logTaskEvent(`[CAS] 重新转存 ${remainingFiles.length} 个 CAS 文件完成`);
+
+                                        // 3. 等待 1 秒
+                                        logTaskEvent(`[CAS] 等待 1 秒...`);
+                                        await new Promise(resolve => setTimeout(resolve, 1000));
+                                    } catch (e) {
+                                        logTaskEvent(`[CAS] 重新转存异常: ${e.message}`);
+                                        await new Promise(resolve => setTimeout(resolve, 1000));
+                                    }
+
+                                    // 4. 清空缓存强制重新获取 sessionKey
                                     if (enableCasFamilyTransfer && familyCloud189) {
                                         familyCloud189._sessionKey = null;
                                         familyCloud189._rsaKey = null;
                                     }
+
                                     batchNumber++;
-                                    await new Promise(resolve => setTimeout(resolve, BATCH_INTERVAL));
                                 } else if (remainingFiles.length === 0) {
                                     logTaskEvent(`[CAS] 所有文件处理完成`);
                                     break;
