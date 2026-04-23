@@ -323,10 +323,10 @@ class Cloud189Service {
     // 家庭接口秒传（三步：init + check + commit），使用正确的家庭签名体系
     // 关键：使用 familySessionKey + familySessionSecret，而非个人RSA体系
     async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
-        const maxRetries = 5;  // 最大重试次数
-        const baseDelay = 3000;  // 基础延迟 3秒
+        const maxRetries = 2;  // 最大重试次数（测试环境）
+        const baseDelay = 3000;  // 固定延迟 3秒
 
-        // 通用重试请求函数（403 指数退避）
+        // 通用重试请求函数（403 固定间隔重试）
         const retryRequest = async (requestInfo, stepName) => {
             let retryCount = 0;
             while (retryCount < maxRetries) {
@@ -344,10 +344,9 @@ class Cloud189Service {
                     retryCount++;
                     const statusCode = e?.response?.statusCode || '';
                     if (statusCode === 403 && retryCount < maxRetries) {
-                        // 指数退避: 3s → 5s → 8s → 12s → 20s
-                        const delay = baseDelay * Math.pow(1.5, retryCount - 1);
-                        logTaskEvent(`[家庭中转] ${stepName} 403，第${retryCount}次重试，等待 ${Math.round(delay)}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                        // 固定延迟 3秒
+                        logTaskEvent(`[家庭中转] ${stepName} 403，第${retryCount}次重试，等待 ${baseDelay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, baseDelay));
                         // 刷新家庭会话密钥（可能过期）
                         this._familySessionKey = null;
                         this._familySessionSecret = null;
@@ -1076,10 +1075,10 @@ class Cloud189Service {
     // 秒传主方法：通过 CAS 信息进行秒传（含全步骤 403 重试）
     // 流程参考 OpenList-CAS: initMultiUpload → (可选 checkTransSecond) → commitMultiUploadFile
     async rapidUpload(fileName, fileSize, fileMd5, sliceMd5, parentFolderId) {
-        const maxRetries = 5;  // 最大重试次数
-        const baseDelay = 3000;  // 基础延迟 3秒
+        const maxRetries = 2;  // 最大重试次数（测试环境）
+        const baseDelay = 3000;  // 固定延迟 3秒
 
-        // 通用重试函数（403 指数退避）
+        // 通用重试函数（403 固定间隔重试）
         const retryWithBackoff = async (fn, stepName) => {
             let retryCount = 0;
             while (retryCount < maxRetries) {
@@ -1090,10 +1089,9 @@ class Cloud189Service {
                     retryCount++;
                     const statusCode = error?.response?.statusCode || '';
                     if ((statusCode === 403 || error.message?.includes('403')) && retryCount < maxRetries) {
-                        // 指数退避: 3s → 5s → 8s → 12s → 20s
-                        const delay = baseDelay * Math.pow(1.5, retryCount - 1);
-                        logTaskEvent(`[CAS秒传] ${stepName} 403，第 ${retryCount} 次重试，等待 ${Math.round(delay)}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
+                        // 固定延迟 3秒
+                        logTaskEvent(`[CAS秒传] ${stepName} 403，第 ${retryCount} 次重试，等待 ${baseDelay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, baseDelay));
                         this._rsaKey = null;  // 刷新密钥
                         this._sessionKey = null;
                         continue;

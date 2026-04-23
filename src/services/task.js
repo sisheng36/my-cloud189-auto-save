@@ -998,6 +998,16 @@ class TaskService {
 
                             // ====== 串行处理 CAS 文件 ======
                             logTaskEvent(`[CAS] 开始串行秒传`);
+
+                            // 预先获取家庭账号的 cloud189 实例（用于刷新密钥）
+                            let familyCloud189ForRefresh = cloud189;
+                            if (enableCasFamilyTransfer && task.casFamilyAccountId && task.casFamilyAccountId !== task.accountId) {
+                                const familyAccount = await this.accountRepo.findOneBy({ id: task.casFamilyAccountId });
+                                if (familyAccount) {
+                                    familyCloud189ForRefresh = Cloud189Service.getInstance(familyAccount);
+                                }
+                            }
+
                             const processCasFile = async (casFile) => {
                                 const result = { casFile, savedFile: null, realFileName: null, success: false, message: '', familyFileIdForCleanup: null };
                                 try {
@@ -1170,9 +1180,9 @@ class TaskService {
                                     }
 
                                     // 每3个文件刷新家庭会话密钥（避免请求次数限制导致403）
-                                    if (enableCasFamilyTransfer && completedCount % 3 === 0 && familyCloud189) {
+                                    if (enableCasFamilyTransfer && completedCount % 3 === 0 && completedCount > 0) {
                                         logTaskEvent(`[家庭中转] 已处理 ${completedCount} 个文件，刷新会话密钥...`);
-                                        await familyCloud189.refreshFamilySessionKeys();
+                                        await familyCloud189ForRefresh.refreshFamilySessionKeys();
                                     }
 
                                     // 每处理10个输出一次进度
