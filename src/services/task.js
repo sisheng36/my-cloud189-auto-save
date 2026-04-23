@@ -1143,7 +1143,7 @@ class TaskService {
                             };
 
                             // ====== 串行处理（避免403限流）======
-                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件，每3个刷新会话密钥`);
+                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件，每文件处理前刷新会话密钥`);
 
                             // 统计计数器
                             let completedCount = 0;
@@ -1153,6 +1153,12 @@ class TaskService {
 
                             for (const casFile of finalCasFilesToTransfer) {
                                 try {
+                                    // 每个文件处理前刷新家庭会话密钥（第1个文件除外）
+                                    if (enableCasFamilyTransfer && completedCount > 0) {
+                                        logTaskEvent(`[家庭中转] 第${completedCount + 1}个文件处理前，刷新会话密钥...`);
+                                        await familyCloud189ForRefresh.refreshFamilySessionKeys();
+                                    }
+
                                     const result = await processCasFile(casFile);
 
                                     // 处理结果
@@ -1177,12 +1183,6 @@ class TaskService {
                                         if (result.message) {
                                             logTaskEvent(`[CAS] ❌ ${result.realFileName || casFile.name} - ${result.message}`);
                                         }
-                                    }
-
-                                    // 每3个文件刷新家庭会话密钥（避免请求次数限制导致403）
-                                    if (enableCasFamilyTransfer && completedCount % 3 === 0 && completedCount > 0) {
-                                        logTaskEvent(`[家庭中转] 已处理 ${completedCount} 个文件，刷新会话密钥...`);
-                                        await familyCloud189ForRefresh.refreshFamilySessionKeys();
                                     }
 
                                     // 每处理10个输出一次进度
