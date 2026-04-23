@@ -1107,6 +1107,7 @@ class TaskService {
                             let retryCount = 0;
                             const MAX_TRANSFER_RETRY = 3;
 
+                            let transferError = null;  // 记录转存错误信息
                             while (!transferSuccess && retryCount < MAX_TRANSFER_RETRY) {
                                 try {
                                     const casTaskInfoList = batchFiles.map(f => ({
@@ -1127,6 +1128,7 @@ class TaskService {
                                     transferSuccess = true;
                                 } catch (error) {
                                     const errorMsg = error.message || '';
+                                    transferError = errorMsg;  // 保存错误信息供后续使用
                                     // 检测API队列堵塞
                                     if (errorMsg.includes('ShareSaveTaskIsAlreadyExist') || errorMsg.includes('BatchOperFileFailed')) {
                                         retryCount++;
@@ -1141,6 +1143,10 @@ class TaskService {
                             }
 
                             if (!transferSuccess) {
+                                // 转存失败，将失败的文件加入failedShareFileIds，避免被缓存导致下次无法重新处理
+                                for (const file of batchFiles) {
+                                    failedShareFileIds.add(String(file.id));
+                                }
                                 // 转存失败，更新重试计数
                                 for (const file of batchFiles) {
                                     const currentRetry = fileRetryCount.get(file.id) || 0;
@@ -1151,7 +1157,7 @@ class TaskService {
                                         permanentlyFailedFiles.push({
                                             id: file.id,
                                             name: file.name,
-                                            reason: `转存失败: ${error.message}`,
+                                            reason: `转存失败: ${transferError || '未知错误'}`,
                                             retryCount: currentRetry + 1
                                         });
                                         remainingFiles = remainingFiles.filter(f => f.id !== file.id);
