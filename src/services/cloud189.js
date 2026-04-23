@@ -323,9 +323,11 @@ class Cloud189Service {
     // 家庭接口秒传（三步：init + check + commit）
     // 关键改动：改用个人RSA签名方式处理家庭接口（参考油猴脚本）
     // 每次请求生成新的随机密钥，不会有密钥使用次数限制问题
+    // 2026-04-23: 增加延迟以应对家庭API频率限制（约每分钟4-5次）
     async familyRapidUpload(fileName, fileSize, fileMd5, sliceMd5, familyId, familyFolderId) {
-        const maxRetries = 2;  // 最大重试次数（测试环境）
-        const baseDelay = 3000;  // 固定延迟 3秒
+        const maxRetries = 2;  // 最大重试次数
+        const stepDelay = 2000;  // 步骤间延迟 2秒（应对频率限制）
+        const retryDelay = 2000;  // 403重试延迟 2秒
 
         try {
             const sliceSize = this._partSize(fileSize);
@@ -336,7 +338,7 @@ class Cloud189Service {
             const sessionKey = await this._getSessionKey();
             logTaskEvent(`[家庭中转] 使用个人RSA签名方式（每次新密钥）`);
 
-            // 第1步: 初始化（家庭接口）
+            // 第1步: 初始化（家庭接口）- 含多次重试
             const initParams = {
                 parentFolderId: String(familyFolderId || ''),
                 familyId: String(familyId),
@@ -346,46 +348,58 @@ class Cloud189Service {
                 lazyCheck: '1'
             };
             const initUri = '/family/initMultiUpload';
-            const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey, sessionKey);
 
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const opts = { headers: initReq.headers };
+            const opts = { headers: {} };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
             }
 
             let initResult;
-            try {
-                initResult = await got(initReq.url, opts).json();
-            } catch (e) {
-                if (e?.response?.statusCode === 403) {
-                    logTaskEvent(`[家庭中转] initMultiUpload 403，等待 ${baseDelay}ms 重试...`);
-                    await new Promise(resolve => setTimeout(resolve, baseDelay));
-                    // 刷新 RSA 密钥
+            let lastError = null;
+            for (let retry = 0; retry < maxRetries; retry++) {
+                // 每次重试刷新 RSA 密钥
+                if (retry > 0) {
                     this._rsaKey = null;
-                    const rsaKey2 = await this._getRsaKey();
-                    const initReq2 = UploadCryptoUtils.buildUploadRequest(initParams, initUri, rsaKey2, sessionKey);
-                    opts.headers = initReq2.headers;
-                    initResult = await got(initReq2.url, opts).json();
-                } else {
-                    throw new Error(`家庭initMultiUpload失败: ${e.message}`);
+                    logTaskEvent(`[家庭中转] initMultiUpload 重试 ${retry}/${maxRetries}，刷新密钥并等待 ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                }
+                const currentRsaKey = await this._getRsaKey();
+                const initReq = UploadCryptoUtils.buildUploadRequest(initParams, initUri, currentRsaKey, sessionKey);
+                opts.headers = initReq.headers;
+
+                try {
+                    initResult = await got(initReq.url, opts).json();
+                    if (initResult.errorCode || (initResult.code && initResult.code !== 'SUCCESS')) {
+                        lastError = new Error(initResult.errorMsg || initResult.msg || initResult.errorCode || '初始化失败');
+                    } else {
+                        lastError = null;
+                        break;  // 成功，跳出重试循环
+                    }
+                } catch (e) {
+                    if (e?.response?.statusCode === 403) {
+                        lastError = new Error(`Response code 403 (Forbidden)`);
+                        // 403 继续重试
+                    } else {
+                        throw new Error(`家庭initMultiUpload失败: ${e.message}`);
+                    }
                 }
             }
-
-            if (initResult.errorCode) throw new Error(initResult.errorMsg || initResult.errorCode);
-            if (initResult.code && initResult.code !== 'SUCCESS') throw new Error(initResult.msg || '初始化失败');
+            if (lastError) throw lastError;
 
             const uploadFileId = initResult.data?.uploadFileId;
             if (!uploadFileId) throw new Error('家庭初始化上传失败: 缺少uploadFileId');
 
-            await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
+            await new Promise(resolve => setTimeout(resolve, stepDelay));  // 步骤间延迟 2秒
 
-            // 第2步: 检查秒传（家庭接口）
+            // 第2步: 检查秒传（家庭接口）- 每步重新获取密钥（参考油猴脚本）
             const checkUri = '/family/checkTransSecond';
             const checkParams = { fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), uploadFileId: String(uploadFileId) };
-            const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, rsaKey, sessionKey);
+            const checkRsaKey = await this._getRsaKey();  // 重新获取RSA密钥
+            const checkSessionKey = await this._getSessionKey();
+            const checkReq = UploadCryptoUtils.buildUploadRequest(checkParams, checkUri, checkRsaKey, checkSessionKey);
             opts.headers = checkReq.headers;
 
             let checkResult;
@@ -400,12 +414,14 @@ class Cloud189Service {
             const fileDataExists = checkResult.data?.fileDataExists;
             if (fileDataExists != 1) throw new Error('文件不存在于云端，无法秒传（家庭接口）');
 
-            await new Promise(resolve => setTimeout(resolve, 1000));  // 步骤间延迟
+            await new Promise(resolve => setTimeout(resolve, stepDelay));  // 步骤间延迟 2秒
 
-            // 第3步: 提交（家庭接口）
+            // 第3步: 提交（家庭接口）- 每步重新获取密钥（参考油猴脚本）
             const commitUri = '/family/commitMultiUploadFile';
             const commitParams = { uploadFileId: String(uploadFileId), fileMd5: String(fileMd5), sliceMd5: String(sliceMd5), lazyCheck: '1', opertype: '3' };
-            const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, rsaKey, sessionKey);
+            const commitRsaKey = await this._getRsaKey();  // 重新获取RSA密钥
+            const commitSessionKey = await this._getSessionKey();
+            const commitReq = UploadCryptoUtils.buildUploadRequest(commitParams, commitUri, commitRsaKey, commitSessionKey);
             opts.headers = commitReq.headers;
 
             let commitResult;

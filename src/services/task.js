@@ -1134,13 +1134,19 @@ class TaskService {
                             };
 
                             // ====== 串行处理（避免403限流）======
-                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件`);
+                            // 2026-04-23: 家庭API有频率限制（约每分钟4-5次），增加冷却机制
+                            const COOLDOWN_AFTER_FILES = 3;  // 每处理3个文件后冷却
+                            const COOLDOWN_DURATION = 3000;  // 冷却时间3秒
+                            const FILE_DELAY = 3000;  // 文件间延迟3秒
+
+                            logTaskEvent(`[CAS] 开始串行处理 ${finalCasFilesToTransfer.length} 个文件（冷却策略：每${COOLDOWN_AFTER_FILES}个文件暂停${COOLDOWN_DURATION/1000}秒）`);
 
                             // 统计计数器
                             let completedCount = 0;
                             let successCount = 0;
                             let skippedCount = 0;
                             let failedCount = 0;
+                            let filesSinceLastCooldown = 0;  // 自上次冷却后处理的文件数
 
                             for (const casFile of finalCasFilesToTransfer) {
                                 try {
@@ -1162,6 +1168,7 @@ class TaskService {
                                         successCount++;
                                         casResults.push({ fileName: result.realFileName, success: true });
                                         newFiles.push({});
+                                        filesSinceLastCooldown++;  // 成功秒传才计入冷却计数
                                     } else if (!result.success && result.casFile) {
                                         failedCount++;
                                         failedShareFileIds.add(String(result.casFile.id));
@@ -1181,8 +1188,15 @@ class TaskService {
                                     failedShareFileIds.add(String(casFile.id));
                                 }
 
-                                // 等待 1000ms 再处理下一个文件
-                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                // 冷却机制：每处理N个成功文件后等待
+                                if (filesSinceLastCooldown >= COOLDOWN_AFTER_FILES && completedCount < finalCasFilesToTransfer.length) {
+                                    logTaskEvent(`[CAS] 冷却：已处理${filesSinceLastCooldown}个文件，等待${COOLDOWN_DURATION/1000}秒避开API限流...`);
+                                    await new Promise(resolve => setTimeout(resolve, COOLDOWN_DURATION));
+                                    filesSinceLastCooldown = 0;
+                                } else {
+                                    // 文件间延迟
+                                    await new Promise(resolve => setTimeout(resolve, FILE_DELAY));
+                                }
                             }
 
                             // 最终统计
