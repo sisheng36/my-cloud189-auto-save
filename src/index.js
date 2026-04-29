@@ -469,8 +469,16 @@ AppDataSource.initialize().then(async () => {
     app.post('/api/tasks/:id/clear-cache', async (req, res) => {
         try {
             const taskId = parseInt(req.params.id);
+            // 清除任务缓存
             await taskCacheManager.clearCache(taskId);
-            res.json({ success: true, data: null });
+            // 同时清除 processingStartTime，恢复任务状态为 pending
+            const task = await taskRepo.findOneBy({ id: taskId });
+            if (task) {
+                task.processingStartTime = null;
+                task.status = 'pending';
+                await taskRepo.save(task);
+            }
+            res.json({ success: true, data: null, message: '缓存已清除，任务状态已恢复' });
         } catch (error) {
             res.json({ success: false, error: error.message });
         }
