@@ -2510,7 +2510,50 @@ class TaskService {
 
         return true;
     }
-    // 根据realRootFolderId获取根目录
+    
+    // 从文件名提取季数和集数
+    _extractSeasonEpisode(fileName) {
+        if (!fileName) return { season: 1, episode: null };
+        fileName = fileName.replace(/\.cas$/i, '');
+        const seasonRegex = /(?:S|Season)\s*(\d+)|第\s*(\d+)\s*季/i;
+        const seasonMatch = fileName.match(seasonRegex);
+        const episodeRegex = /(?:S\d+[-_ ]*E(\d+))|(?:(?:E[P]?|Episode)[-_ ]*(\d+))|(?:第\s*(\d+)\s*[集话])/i;
+        const episodeMatch = fileName.match(episodeRegex);
+        if (!episodeMatch) {
+            const isolatedNumberRegex = /(^|[^\d])(?!1080|720|2160|4K|265|264|10[-_]?bit|HEVC|AAC|HDR|SDR|WEB[-_]?DL|BluRay|x264|x265)(\d{1,4})([^\d]|$)/i;
+            const numberMatch = fileName.match(isolatedNumberRegex);
+            if (numberMatch) {
+                const num = parseInt(numberMatch[2]);
+                if (num >= 1 && num <= 999) {
+                    return { season: seasonMatch ? parseInt(seasonMatch[1] || seasonMatch[2]) : 1, episode: num };
+                }
+            }
+        }
+        return {
+            season: seasonMatch ? parseInt(seasonMatch[1] || seasonMatch[2]) : 1,
+            episode: episodeMatch ? parseInt(episodeMatch[1] || episodeMatch[2] || episodeMatch[3]) : null
+        };
+    }
+
+    // 获取文件扩展名
+    _getFileExtension(fileName) {
+        if (!fileName) return '';
+        fileName = fileName.replace(/\.cas$/i, '');
+        const lastDot = fileName.lastIndexOf('.');
+        if (lastDot === -1 || lastDot === fileName.length - 1) return '';
+        return fileName.substring(lastDot + 1);
+    }
+
+    // 生成 CAS 重命名后的目标文件名
+    _generateCasTargetName(casFileName, tmdbTitle, season, episode) {
+        const ext = this._getFileExtension(casFileName);
+        const seasonStr = String(season).padStart(2, '0');
+        const episodeStr = String(episode).padStart(2, '0');
+        const extPart = ext ? '.' + ext : '.mkv';
+        return tmdbTitle + ' - S' + seasonStr + 'E' + episodeStr + extPart + '.cas';
+    }
+
+// 根据realRootFolderId获取根目录
     async getRootFolder(task) {
         if (task.realRootFolderId) {
             // 判断realRootFolderId下是否还有其他目录, 通过任务查询 查询realRootFolderId是否有多个任务, 如果存在多个 则使用realFolderId
