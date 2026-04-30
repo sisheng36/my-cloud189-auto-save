@@ -529,7 +529,18 @@ AppDataSource.initialize().then(async () => {
             const taskId = parseInt(req.params.id);
             const { tmdbId, videoType, title, manualSeason } = req.body;
             if (!tmdbId || !videoType) throw new Error('参数缺失');
-            const task = await taskRepo.findOneBy({ id: taskId });
+            const task = await taskRepo.findOne({
+                where: { id: taskId },
+                relations: { account: true },
+                select: {
+                    account: {
+                        username: true,
+                        localStrmPrefix: true,
+                        cloudStrmPrefix: true,
+                        embyPathReplace: true
+                    }
+                }
+            });
             if (!task) throw new Error('任务不存在');
             
             task.tmdbId = tmdbId;
@@ -540,7 +551,53 @@ AppDataSource.initialize().then(async () => {
                 ? parseInt(manualSeason) 
                 : null;
             task.manualTmdbBound = true;
+            
+            // TMDB 绑定改变，清除缓存以便重新处理文件
+            const taskCacheManager = require('./services/TaskCacheManager');
+            await taskCacheManager.clearCache(taskId);
+            logTaskEvent(`[TMDB绑定] 已清除任务 ${taskId} 的缓存`);
+            
             await taskRepo.save(task);
+
+            // 自动触发重命名（后台异步执行，不阻塞响应）
+            const renameTask = async () => {
+                try {
+                    const account = task.account;
+                    const cloud189 = Cloud189Service.getInstance(account);
+                    logTaskEvent(`[TMDB绑定] 自动触发重命名: ${task.resourceName}`);
+                    const result = await taskService.autoRename(cloud189, task);
+                    
+                    let message = '';
+                    if (result && result.newFiles && result.newFiles.length > 0) {
+                        message = `✅《${task.resourceName}》TMDB绑定并重命名完成\n已处理 ${result.newFiles.length} 个文件`;
+                        if (result.renameMessages && result.renameMessages.length > 0) {
+                            const details = result.renameMessages.slice(0, 10);
+                            message += `\n${details.join('\n')}`;
+                            if (result.renameMessages.length > 10) {
+                                message += `\n└─ ... 等${result.renameMessages.length}个文件`;
+                            }
+                        }
+                        messageUtil.sendMessage(message);
+
+                        // 重命名后触发 Emby 扫库
+                        const { EmbyService } = require('./services/emby');
+                        const embyService = new EmbyService(messageUtil);
+                        try {
+                            logTaskEvent(`[TMDB绑定] 执行Emby通知: ${task.resourceName}`);
+                            await embyService.notifyEmby(task);
+                        } catch (e) {
+                            logTaskEvent(`[TMDB绑定] Emby扫库失败: ${e.message}`);
+                        }
+                    } else {
+                        message = `ℹ️《${task.resourceName}》TMDB绑定完成，无需重命名（无文件或已是正确格式）`;
+                        messageUtil.sendMessage(message);
+                    }
+                } catch (e) {
+                    logTaskEvent(`[TMDB绑定] 自动重命名失败: ${e.message}`);
+                    messageUtil.sendMessage(`❌《${task.resourceName}》TMDB绑定后重命名失败: ${e.message}`);
+                }
+            };
+            renameTask().catch(() => {}); // 异步执行，不阻塞
 
             res.json({ success: true, data: task });
         } catch (error) {

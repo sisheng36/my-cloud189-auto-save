@@ -1201,12 +1201,7 @@ class TelegramBotService {
                 responseType: 'json'
             }).json();
             if (result.success) {
-                // 触发重命名（后台异步，不等待结果）
-                // 使用 /rename API 而不是 /execute，避免重复转存文件
-                got(`http://localhost:${port}/api/tasks/${taskId}/rename`, {
-                    method: 'POST',
-                    headers: { 'x-api-key': apiKey }
-                }).catch(() => {});
+                // /manual-tmdb 接口已自动触发重命名（后台异步），无需再次调用 /rename
                 const seasonTxt = manualSeason != null ? ` 第${manualSeason}季` : ' (自动识别季)';
                 const successTxt = `✅ 绑定成功！\n🎥 媒体：${title}${videoType === 'tv' ? seasonTxt : ''}\n🎯 TMDB ID: ${tmdbId}\n\n🔄 已在后台触发重命名，稍后会发送结果通知`;
                 await this.bot.editMessageText(successTxt, { chat_id: chatId, message_id: messageId });
