@@ -552,6 +552,31 @@ AppDataSource.initialize().then(async () => {
                 : null;
             task.manualTmdbBound = true;
             
+            // 从 TMDB API 获取更多信息更新任务卡片
+            try {
+                const TMDBService = require('./services/TMDBService');
+                const tmdbService = new TMDBService();
+                const detail = videoType === 'movie'
+                    ? await tmdbService.getMovieDetails(tmdbId)
+                    : await tmdbService.getTVDetails(tmdbId);
+                
+                if (detail) {
+                    // 更新 TMDB 标题（如果未提供）
+                    if (!title && detail.title) {
+                        task.tmdbTitle = detail.title;
+                    }
+                    // 更新总集数（剧集类型）
+                    if (videoType === 'tv' && detail.totalEpisodes) {
+                        task.totalEpisodes = detail.totalEpisodes;
+                    }
+                    // 保存完整的 TMDB 内容
+                    task.tmdbContent = JSON.stringify(detail);
+                    logTaskEvent(`[TMDB绑定] 已获取 TMDB 详情: ${detail.title || title}`);
+                }
+            } catch (e) {
+                logTaskEvent(`[TMDB绑定] 获取 TMDB 详情失败: ${e.message}`);
+            }
+            
             // 注意：TMDB 绑定后不清除缓存，只触发重命名
             // 清缓存会导致任务重新执行，可能误删文件
             
