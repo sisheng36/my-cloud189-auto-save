@@ -1697,7 +1697,12 @@ class TaskService {
 
 
             // 处理新文件并保存到数据库和云盘
-            if (newFiles.length > 0 || casSuccessCount > 0) {
+            // 智能去重流程：只有实际秒传成功或有新文件才发通知
+            const actualNewCount = smartDedupExecuted 
+                ? casResults.filter(r => r.success).length 
+                : (fileCount + casSuccessCount);
+            
+            if (newFiles.length > 0 || actualNewCount > 0) {
                 const resourceName = task.resourceName;
                 const folderPath = task.realFolderName || task.realFolderId || '';
                 const totalEps = task.totalEpisodes > 0 ? task.totalEpisodes : '?';
@@ -1712,7 +1717,7 @@ class TaskService {
                         const refreshedVideoCount = refreshedFiles.filter(f => !f.isFolder && !CasUtils.isCasFile(f.name) && this._checkFileSuffix(f, mediaSuffixs, ConfigService.getConfigValue('task.enableOnlySaveMedia'))).length;
                         progressEps = refreshedVideoCount;
                     } catch (e) {
-                        progressEps = existingMediaCount + casSuccessCount;
+                        progressEps = existingMediaCount + actualNewCount;
                     }
                 } else {
                     progressEps = existingMediaCount + fileCount + casSuccessCount;
@@ -1721,13 +1726,13 @@ class TaskService {
                 // 构建具有表头的结构化通知消息
                 const lines = [
                     `【天翼云转存】`,
-                    `✅《${resourceName}》新增 ${smartDedupExecuted ? casResults.filter(r => r.success).length : (fileCount + casSuccessCount)} 集`,
+                    `✅《${resourceName}》新增 ${actualNewCount} 集`,
                     `📁 ${folderPath}`,
                     ...fileNameList,
                 ];
-                // 添加 CAS 秒传结果到通知
-                if (casSuccessCount > 0) {
-                    const successfulCas = casResults.filter(r => r.success);
+                // 添加 CAS 秒传结果到通知（只有实际秒传成功才显示）
+                const successfulCas = casResults.filter(r => r.success);
+                if (successfulCas.length > 0) {
                     lines.push(`⚡ CAS秒传成功 ${successfulCas.length} 个:`);
                     // 当文件数量超过 6 个时，只显示前 3 个和后 3 个，中间省略
                     if (successfulCas.length > 6) {
