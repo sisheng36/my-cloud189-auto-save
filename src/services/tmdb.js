@@ -11,14 +11,14 @@ class TMDBService {
     async _request(endpoint, params = {}) {
         const proxy = ProxyUtil.getProxyAgent('tmdb');
         try {
-            // DNS解析开始
             const response = await got(`${this.baseURL}${endpoint}`, {
                 searchParams:{
                     api_key: this.apiKey,
                     language: this.language,
                     ...params
                 },
-                agent: proxy
+                agent: proxy,
+                timeout: { request: 10000 }
             }).json();
             return response;
         } catch (error) {

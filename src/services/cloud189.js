@@ -351,7 +351,7 @@ class Cloud189Service {
 
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const opts = { headers: {} };
+            const opts = { headers: {}, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
@@ -690,7 +690,7 @@ class Cloud189Service {
 
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const opts = { headers, method: 'POST', body };
+            const opts = { headers, method: 'POST', body, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
@@ -921,7 +921,7 @@ class Cloud189Service {
         try {
             const proxyUrl = ProxyUtil.getProxy('cloud189');
             const headers = await this._buildAuthHeaders();
-            const options = { headers, followRedirect: true };
+            const options = { headers, followRedirect: true, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 options.agent = { https: new HttpsProxyAgent(proxyUrl) };
@@ -1071,7 +1071,7 @@ class Cloud189Service {
         try {
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const options = { headers };
+            const options = { headers, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 options.agent = { https: new HttpsProxyAgent(proxyUrl) };
@@ -1095,7 +1095,7 @@ class Cloud189Service {
         try {
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const options = { headers };
+            const options = { headers, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 options.agent = { https: new HttpsProxyAgent(proxyUrl) };
@@ -1119,7 +1119,7 @@ class Cloud189Service {
         try {
             const got = require('got');
             const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const options = { headers };
+            const options = { headers, timeout: { request: 30000 } };
             if (proxyUrl) {
                 const { HttpsProxyAgent } = require('https-proxy-agent');
                 options.agent = { https: new HttpsProxyAgent(proxyUrl) };

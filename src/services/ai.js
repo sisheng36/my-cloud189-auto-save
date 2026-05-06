@@ -42,7 +42,8 @@ class AIService {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
                 },
-                responseType: 'json'
+                responseType: 'json',
+                timeout: { request: 30000 }
             });
 
             return {

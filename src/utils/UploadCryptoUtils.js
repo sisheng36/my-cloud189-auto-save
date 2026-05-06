@@ -52,7 +52,8 @@ class UploadCryptoUtils {
                 'AppKey': '600100422',
                 'SessionKey': sessionKey,
                 'Accept': 'application/json;charset=UTF-8'
-            }
+            },
+            timeout: { request: 30000 }
         };
         if (proxyUrl) {
             const { HttpsProxyAgent } = require('https-proxy-agent');
