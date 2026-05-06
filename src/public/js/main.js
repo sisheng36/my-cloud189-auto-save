@@ -40,13 +40,36 @@ async function loadDashboardStats() {
         const dashRecentTasks = document.getElementById('dashRecentTasks');
         if (dashRecentTasks && tasks.length > 0) {
             const recent = tasks.sort((a, b) => b.id - a.id).slice(0, 5);
+            
+            const formatStatus = (task) => {
+                if (task.status === 'completed') return '已完结';
+                if (task.status === 'failed') return '失败';
+                if (task.status === 'processing') return '追剧中';
+                if (task.status === 'pending') {
+                    if (task.currentEpisodes > 0) return '追剧中';
+                    return '等待中';
+                }
+                return task.status || '未知';
+            };
+            
+            const getStatusStyle = (task) => {
+                if (task.status === 'completed') return 'status-completed';
+                if (task.status === 'failed') return 'status-failed';
+                if (task.status === 'processing') return 'status-processing';
+                if (task.status === 'pending') {
+                    if (task.currentEpisodes > 0) return 'status-processing';
+                    return 'status-pending';
+                }
+                return 'status-' + (task.status || 'unknown');
+            };
+            
             dashRecentTasks.innerHTML = recent.map(task => `
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: var(--bg-main);">
                     <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
-                        <span style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${task.taskName}</span>
+                        <span style="font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${task.taskName || '未命名任务'}</span>
                         <span style="font-size: 11px; color: var(--text-muted);">${new Date(task.createdAt || Date.now()).toLocaleString()}</span>
                     </div>
-                    <span class="status-badge ${getStatusClass ? getStatusClass(task) : ''}" style="font-size: 11px; padding: 4px 8px;">${formatTaskStatus ? formatTaskStatus(task) : task.status}</span>
+                    <span class="status-badge ${getStatusStyle(task)}" style="font-size: 11px; padding: 4px 8px;">${formatStatus(task)}</span>
                 </div>
             `).join('');
         } else if (dashRecentTasks) {
@@ -97,6 +120,26 @@ document.addEventListener('DOMContentLoaded', () => {
            }
         });
     }
+    
+    // 侧边栏切换逻辑
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+        
+        // 点击侧边栏外部关闭
+        document.addEventListener('click', (e) => {
+            if (sidebar.classList.contains('open') && 
+                !sidebar.contains(e.target) && 
+                !sidebarToggle.contains(e.target)) {
+                sidebar.classList.remove('open');
+            }
+        });
+    }
+    
     // 加载版本号和仪表盘
     loadVersion();
     loadDashboardStats();
