@@ -38,7 +38,7 @@
 }
 /* 暗黑模式变量 */
 :root {
-    --primary-rgb: 64, 158, 255;  /* #409eff 的 RGB 值 */
+    --primary-rgb: 64, 158, 255;
     --bg-color: #ffffff;
     --background-color: #ffffff;
     --hover-color: #f5f5f5;
@@ -60,31 +60,85 @@
 }
 
 [data-theme="dark"] {
-    --primary-rgb: 64, 158, 255;  /* #409eff 的 RGB 值 */
-    --bg-color: #1a1a1a;
-    --background-color: #1a1a1a;
-    --hover-color: #1f1f1f;
-    --text-color: rgba(255, 255, 255, 0.85);
-    --border-color: #303030;
-    --hover-bg: #1f1f1f;
-    --card-bg: #1a1a1a;
-    --container-bg: #141414;
-    --input-bg: #1f1f1f;
-    --input-border: #303030;
-    --btn-bg: #409eff;
-    --btn-text: rgba(255, 255, 255, 0.85);
-    --btn-warning-bg: #f56c6c;
-    --shadow-color: rgba(255, 255, 255, 0.05);  /* 修改阴影颜色 */
-    --link-color: #409eff;
-    --thead-bg: #1d1d1d;
-    --theme-color: #409eff;
-    --selected-bg: rgba(var(--primary-rgb), 0.3);
+    --primary-rgb: 99, 102, 241;
+    --bg-color: #0f172a;
+    --background-color: #0f172a;
+    --hover-color: #1e293b;
+    --text-color: #f1f5f9;
+    --border-color: #334155;
+    --hover-bg: #1e293b;
+    --card-bg: #1e293b;
+    --container-bg: #0f172a;
+    --input-bg: #1e293b;
+    --input-border: #475569;
+    --btn-bg: #6366f1;
+    --btn-text: #f8fafc;
+    --btn-warning-bg: #ef4444;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --link-color: #818cf8;
+    --thead-bg: #1e293b;
+    --theme-color: #6366f1;
+    --selected-bg: rgba(var(--primary-rgb), 0.25);
 }
 
 /* 应用变量到全局样式 */
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
+}
+
+[data-theme="dark"] body {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+    background-attachment: fixed;
+}
+
+[data-theme="dark"] .container {
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(71, 85, 105, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .sidebar {
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+[data-theme="dark"] .topbar {
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(71, 85, 105, 0.2);
+}
+
+[data-theme="dark"] .nav-item:hover {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+[data-theme="dark"] .nav-item.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+}
+
+[data-theme="dark"] button {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+[data-theme="dark"] button:hover {
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+[data-theme="dark"] .media-btn-circle {
+    background: rgba(30, 41, 59, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+[data-theme="dark"] .media-btn-circle.primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    border: none;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .container {
