@@ -55,5 +55,12 @@ function initLogs() {
             eventSource.close();
         }
     });
-    connectSSE();
+    // 延迟连接 SSE，防止阻塞浏览器的 load 事件导致标签页一直转圈
+    if (document.readyState === 'complete') {
+        connectSSE();
+    } else {
+        window.addEventListener('load', () => {
+            if (!eventSource) connectSSE();
+        });
+    }
 }
