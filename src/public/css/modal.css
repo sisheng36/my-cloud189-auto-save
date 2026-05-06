@@ -17,7 +17,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 10px 0 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .modal-content {
@@ -96,6 +96,24 @@
     gap: 32px;
     margin-bottom: 20px;
 }
+
+[data-theme="dark"] .modal {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .modal-content {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(71, 85, 105, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .form-actions {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(71, 85, 105, 0.3);
+}
+
 .radio-label {
     display: flex;
     align-items: center;

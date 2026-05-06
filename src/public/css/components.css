@@ -91,8 +91,8 @@
 
 /* ========== 卡片式设置样式 ========== */
 .settings-card {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e0e0e0);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     margin-bottom: 20px;
     overflow: hidden;
@@ -104,11 +104,11 @@
     align-items: center;
     gap: 10px;
     padding: 16px 20px;
-    background: var(--card-header-bg, #f8f9fa);
-    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    background: var(--hover-bg);
+    border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     font-size: 15px;
-    color: var(--text-color, #333);
+    color: var(--text-color);
 }
 
 .settings-card-header .card-icon {
@@ -130,7 +130,7 @@
 /* 单个设置项 */
 .settings-item {
     padding: 12px 0;
-    border-bottom: 1px dashed var(--border-light, #eee);
+    border-bottom: 1px dashed var(--border-color);
 }
 
 .settings-item:last-child {
@@ -144,7 +144,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-color, #333);
+    color: var(--text-color);
 }
 
 .settings-item-label input[type="checkbox"] {
