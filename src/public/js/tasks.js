@@ -290,8 +290,8 @@ function renderTaskMediaWall(tasks) {
                     </div>
                     
                     <div class="media-card-bottom">
-                        <div class="media-wall-title" title="${taskName}">${taskName}</div>
-                        <div class="media-wall-meta">
+                        <div class="media-wall-title" title="${taskName}" onclick="event.stopPropagation(); window.open('${task.shareLink}', '_blank');" style="cursor: pointer;">${taskName}</div>
+                        <div class="media-wall-meta" onclick="event.stopPropagation(); showFileListModal('${task.id}');" style="cursor: pointer;">
                             <i class="ph-fill ph-star" style="color: #fbbf24"></i>
                             ${metaLine || '暂无信息'}
                         </div>
@@ -318,6 +318,9 @@ function renderTaskMediaWall(tasks) {
                                 </div>
                                 <div class="media-btn-circle" onclick="event.stopPropagation(); showEditTaskModal(${task.id})" title="更多操作">
                                     <i class="ph ph-dots-three"></i>
+                                </div>
+                                <div class="media-btn-circle" onclick="event.stopPropagation(); clearTaskCache(${task.id})" title="清缓存">
+                                    <i class="ph ph-broom"></i>
                                 </div>
                                 <div class="media-btn-circle" style="color: #fca5a5; border-color: rgba(252,165,165,0.3);" onclick="event.stopPropagation(); deleteTask(${task.id})" title="删除任务">
                                     <i class="ph ph-trash"></i>
