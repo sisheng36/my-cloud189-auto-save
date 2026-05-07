@@ -160,39 +160,57 @@
 }
 
 .settings-item-content {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 12px;
+    align-items: start;
 }
 
-.settings-item-content input,
-.settings-item-content select,
-.settings-item-content textarea {
+/* 让特定元素占满整行 */
+.settings-item-content > small.form-text,
+.settings-item-content > .settings-checkbox-group,
+.settings-item-content > .settings-inline-inputs,
+.settings-item-content > label {
+    grid-column: 1 / -1;
+}
+
+/* checkbox项占满整行 */
+.settings-item-content > label:has(input[type="checkbox"]) {
+    grid-column: 1 / -1;
+}
+
+/* 单独的输入框自动填充 */
+.settings-item-content > input,
+.settings-item-content > select,
+.settings-item-content > textarea {
     width: 100%;
     max-width: none;
 }
 
-/* 多列布局 */
-.settings-row {
+/* settings-row 保持原有行为 */
+.settings-item-content > .settings-row {
+    grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
 }
 
-.settings-row > * {
-    min-width: 0;
-}
-
 /* 响应式：中等屏幕2列 */
 @media (max-width: 1200px) {
-    .settings-row {
+    .settings-item-content {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .settings-item-content > .settings-row {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
 /* 响应式：小屏幕1列 */
 @media (max-width: 768px) {
-    .settings-row {
+    .settings-item-content {
+        grid-template-columns: 1fr;
+    }
+    .settings-item-content > .settings-row {
         grid-template-columns: 1fr;
     }
 }
