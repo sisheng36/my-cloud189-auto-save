@@ -161,7 +161,7 @@
 
 .settings-item-content {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px 12px;
     align-items: start;
 }
@@ -191,8 +191,18 @@
 .settings-item-content > .settings-row {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
+}
+
+/* 响应式：大屏3列 */
+@media (max-width: 1400px) {
+    .settings-item-content {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .settings-item-content > .settings-row {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
 
 /* 响应式：中等屏幕2列 */
