@@ -165,16 +165,36 @@
     gap: 8px;
 }
 
+.settings-item-content input,
+.settings-item-content select,
+.settings-item-content textarea {
+    width: 100%;
+    max-width: none;
+}
+
 /* 多列布局 */
 .settings-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    flex-wrap: wrap;
 }
 
 .settings-row > * {
-    flex: 1;
-    min-width: 150px;
+    min-width: 0;
+}
+
+/* 响应式：中等屏幕2列 */
+@media (max-width: 1200px) {
+    .settings-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 响应式：小屏幕1列 */
+@media (max-width: 768px) {
+    .settings-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* 水平排列的 checkbox 组 */
