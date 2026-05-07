@@ -174,14 +174,14 @@ button,
 }
 
 .btn-primary {
-  background: var(--macos-primary);
+  background: #4B4BFA;
   color: white;
 }
 
 .btn-primary:hover {
-  background: var(--macos-primary-hover);
+  background: #3B3BEA;
   transform: translateY(-1px);
-  box-shadow: 0 2px 5px var(--macos-shadow);
+  box-shadow: 0 2px 8px rgba(75, 75, 250, 0.4);
 }
 
 .btn-default {

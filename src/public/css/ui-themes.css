@@ -359,13 +359,26 @@ button:hover,
 .btn-warning:hover,
 .btn-danger:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+    box-shadow: 0 4px 12px rgba(75, 75, 250, 0.4);
+}
+
+[data-theme="dark"] button:hover,
+[data-theme="dark"] .btn-primary:hover {
+    box-shadow: 0 4px 16px rgba(75, 75, 250, 0.5), 0 0 28px rgba(75, 75, 250, 0.25);
 }
 
 .btn-primary,
-button:not(.btn-default):not(.theme-toggle-btn) {
-    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+button:not(.btn-default):not(.theme-toggle-btn):not(.sidebar-toggle):not(.sidebar-pin) {
+    background: #4B4BFA;
     border: 1px solid transparent;
+    box-shadow: 0 2px 8px rgba(75, 75, 250, 0.3);
+}
+
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] button:not(.btn-default):not(.theme-toggle-btn):not(.sidebar-toggle):not(.sidebar-pin) {
+    background: #4B4BFA;
+    border: 1px solid rgba(75, 75, 250, 0.3);
+    box-shadow: 0 2px 12px rgba(75, 75, 250, 0.4), 0 0 20px rgba(75, 75, 250, 0.15);
 }
 
 .btn-default {
