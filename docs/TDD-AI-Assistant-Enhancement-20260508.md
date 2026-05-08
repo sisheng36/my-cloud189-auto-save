@@ -133,6 +133,7 @@ const INTENT_TYPES = {
 |--------|----------|----------|----------|
 | "查看所有任务" | LIST_TASKS | {} | ✅ 安全 |
 | "查看失败的任务" | LIST_TASKS | {status: 'failed'} | ✅ 安全 |
+| "https://cloud.189.cn/t/abc123" | SMART_CREATE | {shareLink: '...'} | ✅ 安全 |
 | "帮我创建一个任务" | CREATE_TASK | {} | ✅ 安全 |
 | "修改任务123" | UPDATE_TASK | {taskId: 123} | ✅ 安全 |
 | "执行任务123" | RUN_TASK | {taskId: 123} | ✅ 安全 |
@@ -520,7 +521,33 @@ async function confirmAndExecute(req, res) {
 
 #### 6.1.1 创建任务
 
-**流程：**
+**智能识别创建（推荐方式）：**
+
+```
+用户直接发送："https://cloud.189.cn/t/xxxxx"
+  ↓
+AI自动识别：检测到分享链接
+  ↓
+AI智能解析：
+    - 解析链接获取资源名称
+    - TMDB刮削匹配影视信息
+    - 推荐目标文件夹路径
+  ↓
+AI："检测到分享链接，已为您准备创建任务：
+    
+    📦 资源名称：进击的巨人 S4
+    🎬 类型：电视剧
+    📁 推荐保存到：/media/动漫/进击的巨人/
+    🔑 分享密码：需要吗？
+    
+    确认创建？或告诉我修改哪里"
+  ↓
+用户："确认" 或 "保存到/media/test/"
+  ↓
+AI：✅ 任务创建成功！ID: 123
+```
+
+**对话式创建（传统方式）：**
 
 ```
 用户："帮我创建一个任务"
@@ -541,6 +568,57 @@ AI：显示确认对话框
   ↓
 AI：创建任务并返回结果
 ```
+
+**实现代码：**
+
+```javascript
+// 智能识别分享链接
+async function smartCreateTask(userInput) {
+  // 1. 检测是否包含分享链接
+  const shareLinkPattern = /https?:\/\/cloud\.189\.cn\/t\/[\w]+/gi;
+  const match = userInput.match(shareLinkPattern);
+  
+  if (!match) {
+    // 不是链接，走普通对话流程
+    return null;
+  }
+  
+  const shareLink = match[0];
+  
+  // 2. 解析分享链接
+  const shareInfo = await parseShareLink(shareLink);
+  
+  // 3. TMDB刮削
+  const tmdbInfo = await scrapeTMDB(shareInfo.name);
+  
+  // 4. 智能推荐保存路径
+  const suggestedPath = suggestSavePath(shareInfo.name, tmdbInfo);
+  
+  // 5. 返回任务预览（等待用户确认）
+  return {
+    type: 'task_preview',
+    message: '检测到分享链接，已为您准备创建任务',
+    preview: {
+      resourceName: shareInfo.name,
+      videoType: tmdbInfo.type,
+      tmdbInfo: tmdbInfo,
+      suggestedPath: suggestedPath,
+      needPassword: shareInfo.needPassword
+    },
+    askConfirm: true
+  };
+}
+
+// 智能推荐保存路径
+function suggestSavePath(resourceName, tmdbInfo) {
+  const basePath = '/media/';
+  
+  if (tmdbInfo.type === 'movie') {
+    return `${basePath}电影/${resourceName}/`;
+  } else {
+    return `${basePath}动漫/${resourceName}/`;
+  }
+}
 
 **实现代码：**
 
