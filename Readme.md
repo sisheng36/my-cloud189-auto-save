@@ -160,6 +160,30 @@
 
 ---
 
+### 9. Webhook {savePath} 占位符（v2.2.62+）
+
+支持在自定义推送 webhook 的 URL、headers、body 中使用 `{savePath}` 占位符，用于触发 SmartStrm 任务。
+
+#### 使用示例
+
+配置 SmartStrm webhook 时，body 可用以下格式：
+
+```json
+{
+  "event": "cs_strm",
+  "strmtask": "tv",
+  "savepath": "{savePath}"
+}
+```
+
+这样转存完成后会自动触发 SmartStrm 生成 STRM 文件。
+
+#### 相关链接
+
+- 配合 SmartStrm 使用: https://smartstrm.github.io/settings/webhook
+
+---
+
 ## 🛠️ Docker 快速部署
 
 ```bash
