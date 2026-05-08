@@ -28,9 +28,9 @@ function initTabs() {
                 });
                 document.querySelector('.page-container').scrollTop = 0; 
             } else if (tabId === 'settingsTab' && !item.dataset.subTab) {
-                // If somehow settingsTab is clicked without sub-tab, show basic by default
+                // 没有sub-tab时，显示所有设置卡片
                 document.querySelectorAll('#settingsTab .settings-card').forEach(card => {
-                    card.style.display = card.dataset.settingGroup === 'basic' ? 'block' : 'none';
+                    card.style.display = 'block';
                 });
             }
         });
