@@ -200,30 +200,25 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdown.innerHTML = `
                 <div class="notification-header">
                     <h3>系统通知</h3>
-                    <span class="notification-close">&times;</span>
+                    <span class="uptime-badge" style="margin-left: 12px; padding: 4px 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border-radius: 6px; font-size: 13px; font-weight: 600;">已运行 12 天 18 小时</span>
+                    <span class="notification-close" style="margin-left: auto; cursor: pointer; font-size: 20px;">&times;</span>
                 </div>
                 <div class="notification-body">
-                    <div class="notification-stats">
-                        <div class="stat-item">
-                            <div class="stat-header">
-                                <span>本地缓存占用</span>
-                                <strong><span id="notifLocalCache">2.4</span> MB</strong>
-                            </div>
-                            <div class="load-bar"><div class="load-progress" style="width: 15%; background: var(--accent);"></div></div>
+                    <div class="notification-section">
+                        <div class="notification-section-header" onclick="toggleNotificationSection(this)" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-main); border-radius: 6px; margin-bottom: 8px;">
+                            <span style="font-size: 14px; font-weight: 600;">系统关键信息</span>
+                            <i class="ph ph-caret-down" style="transition: transform 0.2s;"></i>
                         </div>
-                        <div class="stat-item" style="margin-top: 16px;">
-                            <div class="stat-header">
-                                <span>日志文件大小</span>
-                                <strong><span id="notifLogSize">0.8</span> MB</strong>
+                        <div class="notification-section-content" style="display: none; padding: 12px 16px; background: var(--bg-main); border-radius: 6px;">
+                            <div style="font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+                                <div style="margin-bottom: 8px;"><strong>任务状态：</strong>运行中</div>
+                                <div style="margin-bottom: 8px;"><strong>活跃任务：</strong>3 个</div>
+                                <div style="margin-bottom: 8px;"><strong>今日完成：</strong>12 个任务</div>
+                                <div style="margin-bottom: 8px;"><strong>待处理：</strong>5 个任务</div>
+                                <div style="margin-bottom: 8px;"><strong>失败任务：</strong>1 个</div>
+                                <div><strong>最后更新：</strong>2 分钟前</div>
                             </div>
-                            <div class="load-bar"><div class="load-progress" style="width: 5%; background: #10b981;"></div></div>
                         </div>
-                    </div>
-                    <div class="notification-divider" style="border-top: 1px solid var(--border-color); margin: 16px 0;"></div>
-                    <div class="notification-actions">
-                        <button onclick="document.getElementById('logsModal').style.display='flex'; document.querySelector('.notification-dropdown').remove();" style="width: 100%; padding: 8px 12px; background: #4B4BFA; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all 0.2s ease;">
-                            <i class="ph ph-file-text" style="margin-right: 6px;"></i>查看系统日志
-                        </button>
                     </div>
                 </div>
             `;
@@ -437,6 +432,18 @@ function toggleFloatingBtns() {
     const icon = document.getElementById('toggleIcon');
     container.classList.toggle('collapsed');
     icon.classList.toggle('expanded');
+}
+
+function toggleNotificationSection(header) {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('i');
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(0deg)';
+    }
 }
 
 
