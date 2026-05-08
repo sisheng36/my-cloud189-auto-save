@@ -169,14 +169,18 @@
 /* 让特定元素占满整行 */
 .settings-item-content > small.form-text,
 .settings-item-content > .settings-checkbox-group,
-.settings-item-content > .settings-inline-inputs,
-.settings-item-content > label {
+.settings-item-content > .settings-inline-inputs {
     grid-column: 1 / -1;
 }
 
 /* checkbox项占满整行 */
 .settings-item-content > label:has(input[type="checkbox"]) {
     grid-column: 1 / -1;
+}
+
+/* 普通label（不包含checkbox）不占满整行 */
+.settings-item-content > label:not(:has(input[type="checkbox"])) {
+    grid-column: auto;
 }
 
 /* 单独的输入框自动填充 */
@@ -193,6 +197,13 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 12px;
+}
+
+/* settings-row内部的div */
+.settings-row > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 /* 响应式：大屏3列 */
