@@ -227,8 +227,19 @@ class TelegramBotService {
             }
             try {
                 if (!this._checkUserId(chatId)) return;
+                
+                // 先发送提示消息
+                const tipMsg = await this.bot.sendMessage(chatId, '✅ 检测到分享链接，正在为您准备创建任务...');
+                
                 const { url: shareLink, accessCode } = cloud189Utils.parseCloudShare(msg.text);
                 await this.handleFolderSelection(chatId, shareLink, null, accessCode);
+                
+                // 删除提示消息
+                try {
+                    await this.bot.deleteMessage(chatId, tipMsg.message_id);
+                } catch (e) {
+                    // 忽略删除失败
+                }
             } catch (error) {
                 console.log(error)
                 this.bot.sendMessage(chatId, `处理失败: ${error.message}`);

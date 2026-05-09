@@ -492,18 +492,28 @@ AppDataSource.initialize().then(async () => {
     app.get('/api/tmdb/search', async (req, res) => {
         try {
             const { query, type } = req.query;
+            console.log(`[TMDB搜索] 关键词: "${query}", 类型: ${type}`);
+            
             if (!query) throw new Error('搜索关键字不能为空');
+            
             const tmdbService = new TMDBService();
+            console.log(`[TMDB搜索] API Key: ${tmdbService.apiKey ? '已配置' : '❌ 未配置'}`);
+            
             let results = [];
             if (type === 'movie') {
+                console.log(`[TMDB搜索] 调用 /search/movie`);
                 const response = await tmdbService._request('/search/movie', { query, include_adult: false });
                 results = response.results || [];
             } else {
+                console.log(`[TMDB搜索] 调用 /search/tv`);
                 const response = await tmdbService._request('/search/tv', { query, include_adult: false });
                 results = response.results || [];
             }
+            
+            console.log(`[TMDB搜索] 结果数量: ${results.length}`);
             res.json({ success: true, data: results });
         } catch (error) {
+            console.error(`[TMDB搜索] 错误:`, error.message);
             res.json({ success: false, error: error.message });
         }
     });
