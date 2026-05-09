@@ -209,6 +209,9 @@ class TaskService {
         name = name.replace(/\.S\d+/gi, '.');            // S01
         name = name.replace(/\.E[P]?\d+/gi, '.');        // E01, EP01
         name = name.replace(/\.第\s*\d+\s*[集季话]/gi, '.'); // 第1集, 第1季, 第1话
+        name = name.replace(/\s+S\d+[-_ ]*E\d+/gi, '');  // S01E01（空格分隔）
+        name = name.replace(/\s+S\d+/gi, '');            // S01（空格分隔）
+        name = name.replace(/\s+E[P]?\d+/gi, '');        // E01（空格分隔）
 
         // 4. 移除技术参数（常见视频/音频编码格式）- 使用更宽松的匹配
         const techParams = [
@@ -241,23 +244,49 @@ class TaskService {
             name = name.replace(new RegExp(`\\s+${param}(\\s|\\.|$|@)`, 'gi'), ' ');
             // 移除 @ 前缀的参数
             name = name.replace(new RegExp(`@${param}`, 'gi'), '');
+            // 移除参数（无分隔符粘连情况，如"蓝光原盘REMUX"）
+            name = name.replace(new RegExp(`\\b${param}\\b`, 'gi'), '');
         }
 
         // 5. 移除 @xxx 后缀（如 @HiveWeb）
         name = name.replace(/@[\w.-]+/gi, '');
 
-        // 6. 清理多余点号和空格（多次清理确保干净）
+        // 移除 -GROUP 后缀（如 -ROVERS, -FRDS）
+        name = name.replace(/\s*[-–—][\w.-]+$/gi, '');
+        name = name.replace(/\s*[-–—][\w.-]+\s/gi, ' ');
+
+        // 6. 移除中文技术描述（视频质量、字幕等）
+        const chineseDescs = [
+            '蓝光原盘', '蓝光', '原盘', '原盘REMUX',
+            '内封.*?字幕', '双语字幕', '特效字幕', '字幕',
+            '简日双语', '中日双语', '中英双语', '双语',
+            '内封字幕', '外挂字幕',
+            '合集', '系列', '全集',
+            '国语', '国粤双语', '粤语',
+            '硬字幕', '软字幕'
+        ];
+        for (const desc of chineseDescs) {
+            name = name.replace(new RegExp(desc, 'gi'), '');
+        }
+
+        // 7. 移除文件大小（如 26.04GB, 1.5GB, 700MB）
+        name = name.replace(/\d+\.?\d*\s*(GB|MB|KB|TB|gb|mb|kb|tb)/gi, '');
+
+        // 8. 移除编号（NO.102, NO.26, NO 102 等）
+        name = name.replace(/[\s.]?NO\.?\s*\d+/gi, '');
+
+        // 9. 清理多余点号和空格（多次清理确保干净）
         name = name.replace(/\.\./g, '.');
         name = name.replace(/\.\./g, '.');  // 再次清理（可能产生新的双点）
         name = name.replace(/\.$/, '');
         name = name.replace(/^\./, '');
         name = name.trim();
 
-        // 7. 将点号替换为空格（更符合 TMDB 搜索格式）
+        // 10. 将点号替换为空格（更符合 TMDB 搜索格式）
         name = name.replace(/\./g, ' ');
         name = name.replace(/\s+/g, ' ').trim();
 
-        // 8. 移除残留的数字孤立（可能是帧率/声道残留）
+        // 11. 移除残留的数字孤立（可能是帧率/声道残留）
         name = name.replace(/\s+\d+\s+/g, ' ');  // 孤立数字
         name = name.replace(/\s+\d+$/g, '');     // 末尾数字
         name = name.trim();
