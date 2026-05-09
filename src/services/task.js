@@ -403,48 +403,52 @@ class TaskService {
                         }
                     }
                 } else {
-                    // 检查是否配置了 TMDB API Key
                     const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
                     if (tmdbApiKey) {
                         logTaskEvent(`[AI重命名] 未发现手动指定，正在通过 TMDB 自动搜索可能匹配的名称: ${baseName}...`);
-                        // 查询 TMDB (优先返回中文名称)
                         const tmdbService = new TMDBService();
 
-                        // 如果用户指定了videoType，优先按指定类型搜索
-                        if (taskDto?.videoType === 'movie') {
-                            const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
-                            if (movieResult && movieResult.title) {
-                                tmdbName = movieResult.title;
-                                tmdbType = 'movie';
-                                if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
-                                tmdbParsed = true;
-                            }
-                        } else if (taskDto?.videoType === 'tv') {
-                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                            if (tvResult && tvResult.title) {
-                                tmdbName = tvResult.title;
-                                tmdbType = 'tv';
-                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
-                                tmdbParsed = true;
-                            }
-                        } else {
-                            // 未指定类型，按原逻辑先搜剧集再搜电影
-                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                            if (tvResult && tvResult.title) {
-                                tmdbName = tvResult.title;
-                                tmdbType = 'tv';
-                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
-                                tmdbParsed = true;
-                            } else {
-                                // 如果查不到剧集，则查电影
-                                const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
-                                if (movieResult && movieResult.title) {
-                                    tmdbName = movieResult.title;
-                                    tmdbType = 'movie';
-                                    if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                        const searchStrategies = [];
+                        const words = baseName.split(/\s+/).filter(w => w.length > 0);
+                        
+                        searchStrategies.push({ name: '完整名称', query: baseName });
+                        if (words.length >= 2) {
+                            searchStrategies.push({ name: '前两词', query: words.slice(0, 2).join(' ') });
+                        }
+                        if (words.length >= 1 && words[0].length >= 2) {
+                            searchStrategies.push({ name: '首词', query: words[0] });
+                        }
+                        const noChinese = baseName.replace(/[\u4e00-\u9fa5]/g, '').trim();
+                        if (noChinese && noChinese !== baseName && noChinese.length >= 2) {
+                            searchStrategies.push({ name: '移除中文', query: noChinese });
+                        }
+
+                        const typesToTry = taskDto?.videoType ? [taskDto.videoType] : ['tv', 'movie'];
+
+                        for (const strategy of searchStrategies) {
+                            if (!strategy.query || strategy.query.length < 2 || tmdbParsed) continue;
+                            
+                            logTaskEvent(`[TMDB搜索] 尝试策略"${strategy.name}": "${strategy.query}"`);
+                            
+                            for (const type of typesToTry) {
+                                if (tmdbParsed) break;
+                                
+                                const result = type === 'tv' 
+                                    ? await tmdbService.searchTV(strategy.query, year ? year.toString() : '')
+                                    : await tmdbService.searchMovie(strategy.query, year ? year.toString() : '');
+                                
+                                if (result && result.title) {
+                                    tmdbName = result.title;
+                                    tmdbType = type;
+                                    if (result.releaseDate) year = parseInt(result.releaseDate.substring(0, 4)) || year;
                                     tmdbParsed = true;
+                                    logTaskEvent(`[TMDB搜索] ✅ 策略"${strategy.name}"成功匹配${type.toUpperCase()}: "${tmdbName}" (${year})`);
                                 }
                             }
+                        }
+
+                        if (!tmdbParsed) {
+                            logTaskEvent(`[TMDB搜索] ❌ 所有策略均失败，将降级到AI分析`);
                         }
                     }
                 }
@@ -548,14 +552,15 @@ class TaskService {
             }
 
             // ======= AI 回退方案 =======
-            // 如果 TMDB 未匹配成功，或本地正则无法完全匹配，使用 AI 大模型解析
             const aiReason = !tmdbParsed ? 'TMDB未匹配到影视信息' : '本地正则无法完全匹配季集数';
             logTaskEvent(`${aiReason}，调用 AI 大模型解析文件名...`);
-            const result = await AIService.simpleChatCompletion(resourcePath, files);
+            const taskName = taskDto?.resourceName || null;
+            const result = await AIService.simpleChatCompletion(resourcePath, files, taskName);
             if (!result.success) {
-                // 如果 AI 分析失败且还没找到 TMDB 信息，可以判定完全失败
                 throw new Error('AI 分析失败: ' + result.error);
             }
+
+            logTaskEvent(`✅ AI分析成功，提取结果: 名称="${result.data.name}", 年份=${result.data.year}, 类型=${result.data.type}`);
 
             // 强制将 AI 给出的最终结果中的名字覆写为更准确的 TMDB 官方中文名
             if (tmdbParsed && result.data) {

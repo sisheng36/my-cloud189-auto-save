@@ -145,7 +145,7 @@ class AIService {
         return response;
     }
 
-    async simpleChatCompletion(resourcePath, files) {
+    async simpleChatCompletion(resourcePath, files, taskName = null) {
         const CHUNK_SIZE = 40; // 每次处理的文件数量
         let allEpisodes = [];
         let baseResult = null;
@@ -171,17 +171,22 @@ class AIService {
                             3. 如果无法确定年份，返回0, 如果无法确定季编号, 返回01
                             4. 如果无法判断类型，默认为 movie
                             5. 如果是单个文件，episode 数组只包含一个元素
+                            6. 优先从任务名称中提取中文译名
 
                             返回格式必须是: {
-                                name: string,  // 纯净的影视剧名称，不含年份
-                                year: number,  // 提取的年份信息
+                                name: string,           // 主标题（优先中文译名）
+                                englishTitle: string,   // 英文原名（如果有）
+                                chineseTitle: string,   // 中文译名（如果有）
+                                year: number,           // 提取的年份信息
                                 type: "tv" | "movie",
-                                season: string,  // 季编号，必须是纯数字字符串，如："01"
-                                episode: [{ // 仅包含当前处理的 chunk 的剧集信息
+                                tmdbId: number,         // TMDB ID（如果能识别，否则为null）
+                                confidence: number,     // 置信度 0-1
+                                season: string,         // 季编号，必须是纯数字字符串，如："01"
+                                episode: [{             // 仅包含当前处理的 chunk 的剧集信息
                                     id: string,
-                                    name: string, // 使用父级目录中提取到的纯净的影视剧名称，不含年份
-                                    season: string,  // 季编号，必须是纯数字字符串，如："01"
-                                    episode: string,  // 集编号，如果小于100使用两位数字（如："01"），大于等于100使用实际位数
+                                    name: string,        // 使用主标题
+                                    season: string,      // 季编号
+                                    episode: string,     // 集编号
                                     extension: string
                                 }]
                             }
@@ -195,15 +200,26 @@ class AIService {
                             3. 每个剧集必须包含名称：
                                  * 优先使用所在文件夹的纯净的影视剧名称，不能包含年份、季数等信息
                                  * 保留纯粹的剧集名称，确保与文件夹名称保持一致
-                            2. 文件扩展名必须包含点号（如：'.mkv', '.mp4'）。
+                            4. 文件扩展名必须包含点号（如：'.mkv', '.mp4'）。
                             5. 年份必须是数字类型
                             6. 必须严格按照此格式返回，不要添加任何额外说明文字
                             7. 不要使用代码块标记，直接返回 JSON 对象
-                            8. 不要对文件名内容做任何主观评判，专注于格式解析`
+                            8. 不要对文件名内容做任何主观评判，专注于格式解析
+                            9. 常见影视识别（如果能识别，请返回TMDB ID）：
+                               - Princess Mononoke = 幽灵公主 (TMDB ID: 128)
+                               - Spirited Away = 千与千寻 (TMDB ID: 129)
+                               - Your Name = 你的名字 (TMDB ID: 372058)
+                               - Howl's Moving Castle = 哈尔的移动城堡 (TMDB ID: 11)
+                            10. 置信度评估：
+                                - 0.9-1.0: 非常确定（标题、年份完全匹配）
+                                - 0.7-0.9: 比较确定（标题匹配但年份不确定）
+                                - 0.5-0.7: 一般确定（只能推断标题）
+                                - <0.5: 不确定（建议人工确认）`
                         },
                         {
                             role: 'user',
-                            content: `资源路径：${resourcePath}\n文件列表：${JSON.stringify(chunk, null, 2)}`
+                            content: `资源路径：${resourcePath}
+${taskName ? `任务名称：${taskName}\n注意：任务名称可能包含中文译名，请优先从任务名称中提取！\n` : ''}文件列表：${JSON.stringify(chunk, null, 2)}`
                         }
                     ];
                 } else {
