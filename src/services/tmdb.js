@@ -189,10 +189,12 @@ class TMDBService {
         const bestMatch = details.reduce((best, current) => {
             if (!current) return best;
             let score = 0;
+            let scoreDetails = [];
             
             // 1. 标题完全匹配加分
             if (current.title.toLowerCase() === title.toLowerCase()) {
                 score += 10;
+                scoreDetails.push('完全匹配+10');
             }
             
             // 2. 标题包含关系加分（避免匹配到花絮、纪录片等）
@@ -202,33 +204,64 @@ class TMDBService {
                 // 标题长度越接近，分数越高
                 const lengthDiff = Math.abs(current.title.length - title.length);
                 if (lengthDiff <= 2) {
-                    score += 8; // 几乎完全匹配
+                    score += 8;
+                    scoreDetails.push(`包含(长度差${lengthDiff})+8`);
                 } else if (lengthDiff <= 5) {
-                    score += 5; // 比较接近
+                    score += 5;
+                    scoreDetails.push(`包含(长度差${lengthDiff})+5`);
                 } else {
-                    score += 2; // 包含但长度差异大
+                    score += 1;
+                    scoreDetails.push(`包含(长度差${lengthDiff})+1`);
                 }
             }
             
-            // 3. 年份匹配加分
+            // 3. 原标题匹配加分（重要！处理中英文差异）
+            if (current.originalTitle) {
+                const originalTitleLower = current.originalTitle.toLowerCase();
+                if (originalTitleLower === titleLower) {
+                    score += 10;
+                    scoreDetails.push('原名完全匹配+10');
+                } else if (originalTitleLower.includes(titleLower) || titleLower.includes(originalTitleLower)) {
+                    const lengthDiff = Math.abs(current.originalTitle.length - title.length);
+                    if (lengthDiff <= 2) {
+                        score += 8;
+                        scoreDetails.push(`原名包含(长度差${lengthDiff})+8`);
+                    } else if (lengthDiff <= 5) {
+                        score += 5;
+                        scoreDetails.push(`原名包含(长度差${lengthDiff})+5`);
+                    }
+                }
+            }
+            
+            // 4. 年份匹配加分
             const mediaYear = new Date(current.releaseDate).getFullYear();
             if (year && mediaYear === parseInt(year)) {
                 score += 5;
+                scoreDetails.push(`年份匹配(${mediaYear})+5`);
             }
             
-            // 4. 票数加分（热门内容优先）
-            if (current.voteCount && current.voteCount > 100) {
+            // 5. 票数加分（热门内容优先）
+            if (current.voteCount && current.voteCount > 1000) {
+                score += 5;
+                scoreDetails.push(`票数(${current.voteCount})+5`);
+            } else if (current.voteCount && current.voteCount > 100) {
                 score += 3;
+                scoreDetails.push(`票数(${current.voteCount})+3`);
             } else if (current.voteCount && current.voteCount > 10) {
                 score += 2;
+                scoreDetails.push(`票数(${current.voteCount})+2`);
             }
             
-            // 5. 评分加分
-            if (current.voteAverage && current.voteAverage > 7) {
+            // 6. 评分加分
+            if (current.voteAverage && current.voteAverage > 8) {
+                score += 3;
+                scoreDetails.push(`评分(${current.voteAverage})+3`);
+            } else if (current.voteAverage && current.voteAverage > 7) {
                 score += 2;
+                scoreDetails.push(`评分(${current.voteAverage})+2`);
             }
             
-            // 6. TV剧集特殊处理
+            // 7. TV剧集特殊处理
             if (type === 'tv' && currentEpisodes > 0) {
                 // 如果是连载中的剧集，且已有集数小于总集数，优先级更高
                 if (current.status === 'Returning Series' && currentEpisodes <= current.lastEpisodeToAir.episode_number) {
@@ -245,6 +278,7 @@ class TMDBService {
                 console.log(`匹配分析 - ${current.title}: 分数=${score}, 最近一次集数=${current.lastEpisodeToAir.episode_number}, 已有集数=${currentEpisodes}, 状态=${current.status}`);
             }
 
+            console.log(`  - "${current.title}": 分数=${score} (${scoreDetails.join(', ')})`);
             return (!best || score > best.score) ? {...current, score} : best;
         }, null);
 
