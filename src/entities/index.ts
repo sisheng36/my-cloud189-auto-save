@@ -230,6 +230,27 @@ export class Task {
     // 用于多账号场景：当任务账号没有家庭空间时，可选择其他账号的家庭空间进行中转
     @Column('integer', { nullable: true })
     casFamilyAccountId!: number;
+    
+    // ========== 任务重建相关字段 ==========
+    
+    // 标记：是否为重建任务（重建的任务永不触发重建）
+    @Column('boolean', { default: false })
+    isRebuiltTask!: boolean;
+    
+    // 来源：原始任务ID（用于追溯和循环检测）
+    @Column('integer', { nullable: true })
+    rebuildFromTaskId!: number;
+    
+    // 计数：已重建次数（防止无限重建）
+    @Column('integer', { default: 0 })
+    rebuildCount!: number;
+    
+    // 时间：上次重建时间（防抖机制）
+    @Column('datetime', { nullable: true, transformer: {
+        from: (date: Date) => date && new Date(date.getTime() + (8 * 60 * 60 * 1000)),
+        to: (date: Date) => date
+    } })
+    lastRebuildTime!: Date;
 }
 
 // 常用目录表

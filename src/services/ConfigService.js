@@ -10,19 +10,26 @@ class ConfigService {
         taskExpireDays: 3,
         taskCheckCron: '0 19-23 * * *',
         cleanRecycleCron: '0 */8 * * *',
-        maxRetries: 3,        // 最大重试次数
-        retryInterval: 300,   // 重试间隔（秒）
+        maxRetries: 3,
+        retryInterval: 300,
         enableAutoClearRecycle: false,
         enableAutoClearFamilyRecycle: false,
-        mediaSuffix: '.mkv;.iso;.ts;.mp4;.avi;.rmvb;.wmv;.m2ts;.mpg;.flv;.rm;.mov', // 媒体文件后缀
-        enableOnlySaveMedia: false, // 只保存媒体文件
-        // 文件夹不存在时重新创建
+        mediaSuffix: '.mkv;.iso;.ts;.mp4;.avi;.rmvb;.wmv;.m2ts;.mpg;.flv;.rm;.mov',
+        enableOnlySaveMedia: false,
         enableAutoCreateFolder: false,
-        enableCasRapidUpload: true, // 启用 CAS 秒传
-        enableDeleteCasFile: true,  // 处理后删除 .cas 文件（清理任务目标目录）
-        enableCasFamilyTransfer: true,  // 启用家庭空间中转秒传（默认开启，失败则降级到个人接口）
-        // casFamilyFolderId 已移除，改为账号级配置（Account.familyFolderId）
-        enableDeleteFamilyTempFile: true, // 秒传完成后清空家庭中转目录并释放配额
+        enableCasRapidUpload: true,
+        enableDeleteCasFile: true,
+        enableCasFamilyTransfer: true,
+        enableDeleteFamilyTempFile: true,
+        autoRebuildUnidentifiedTask: true,
+        autoRebuildMaxCount: 1,
+        autoRebuildMinInterval: 600000,
+        autoRebuildDeleteOriginal: true,
+        autoRebuildNotifyUser: true,
+        autoRebuildPathTemplate: {
+          tv: '/media/电视剧/{title} ({year})',
+          movie: '/media/电影/{title} ({year})'
+        }
       },
       wecom: {
         enable: false,

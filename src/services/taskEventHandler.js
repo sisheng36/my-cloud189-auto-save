@@ -3,10 +3,12 @@ const { EmbyService } = require('./emby');
 const { logTaskEvent } = require('../utils/logUtils');
 const ConfigService = require('./ConfigService');
 const { ScrapeService } = require('./ScrapeService');
+const TaskRebuildService = require('./TaskRebuildService');
 
 class TaskEventHandler {
     constructor(messageUtil) {
         this.messageUtil = messageUtil;
+        this.rebuildService = null;
     }
 
     async handle(taskCompleteEventDto) {
@@ -15,9 +17,21 @@ class TaskEventHandler {
         }
         const task = taskCompleteEventDto.task;
         const taskRepo = taskCompleteEventDto.taskRepo;
+        const taskService = taskCompleteEventDto.taskService;
+        
         logTaskEvent(` ${task.resourceName} 触发事件:`);
         try {
-            await this._handleAutoRename(taskCompleteEventDto);
+            const renameResult = await this._handleAutoRename(taskCompleteEventDto);
+            
+            if (renameResult && renameResult.tmdbInfo) {
+                await this._handleTaskRebuild({
+                    task,
+                    tmdbInfo: renameResult.tmdbInfo,
+                    taskService,
+                    taskRepo
+                });
+            }
+            
             await this._handleLatestSavedDisplay(taskCompleteEventDto);
             await this._handleStrmGeneration(taskCompleteEventDto);
             await this._handleAlistCache(taskCompleteEventDto);
@@ -29,7 +43,6 @@ class TaskEventHandler {
         }
         logTaskEvent(`================事件处理完成================`);
 
-        // 事件处理完成后，恢复任务状态为 pending（除非已 completed）
         if (taskRepo && task.status === 'processing') {
             task.status = 'pending';
             await taskRepo.save(task);
@@ -147,10 +160,8 @@ class TaskEventHandler {
     async _handleAutoRename(taskCompleteEventDto) {
         try {
             const {task, taskService, cloud189, taskRepo} = taskCompleteEventDto;
-            // 重新从数据库获取最新的任务对象，确保包含用户手动绑定的 TMDB 信息
             const freshTask = await taskRepo.findOneBy({ id: task.id });
             if (freshTask) {
-                // 合并最新字段到当前 task 对象
                 task.manualTmdbBound = freshTask.manualTmdbBound;
                 task.tmdbId = freshTask.tmdbId;
                 task.tmdbTitle = freshTask.tmdbTitle;
@@ -160,9 +171,7 @@ class TaskEventHandler {
             const result = await taskService.autoRename(cloud189, task);
             if (result && result.newFiles && result.newFiles.length > 0) {
                 taskCompleteEventDto.fileList = result.newFiles;
-                // 发送重命名完成通知（带详细内容）
                 let message = `✅《${task.resourceName}》重命名完成\n已处理 ${result.newFiles.length} 个文件`;
-                // 添加重命名详情（最多显示10条，避免消息过长）
                 if (result.renameMessages && result.renameMessages.length > 0) {
                     const details = result.renameMessages.slice(0, 10);
                     message += `\n${details.join('\n')}`;
@@ -171,11 +180,46 @@ class TaskEventHandler {
                     }
                 }
                 this.messageUtil.sendMessage(message);
+                
+                if (result.tmdbInfo) {
+                    return { tmdbInfo: result.tmdbInfo };
+                }
             }
         } catch (error) {
             console.error(error);
             logTaskEvent(`自动重命名失败: ${error.message}`);
         }
+        return null;
+    }
+    
+    async _handleTaskRebuild(params) {
+        const { task, tmdbInfo, taskService, taskRepo } = params;
+        
+        if (!this.rebuildService) {
+            this.rebuildService = new TaskRebuildService(taskService, taskRepo);
+        }
+        
+        const checkResult = await this.rebuildService.shouldRebuildTask(task, tmdbInfo);
+        
+        if (!checkResult.should) {
+            logTaskEvent(`[智能重建] 跳过重建: ${checkResult.reason}`);
+            return;
+        }
+        
+        const rebuildResult = await this.rebuildService.rebuildTask({
+            originalTask: task,
+            tmdbInfo,
+            deleteOriginal: checkResult.config.deleteOriginal,
+            notifyUser: checkResult.config.notifyUser
+        });
+        
+        if (rebuildResult.success) {
+            logTaskEvent(`[智能重建] ✅ 重建成功: 新任务ID=${rebuildResult.newTaskId}`);
+        } else {
+            logTaskEvent(`[智能重建] ❌ 重建失败: ${rebuildResult.reason}`);
+        }
+        
+        return rebuildResult;
     }
 
     async _handleStrmGeneration(taskCompleteEventDto) {
