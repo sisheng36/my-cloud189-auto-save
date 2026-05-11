@@ -190,6 +190,39 @@
     background: transparent;
 }
 
+/* 主内容区域 */
+[data-theme="cinema"] .main-content {
+    background: transparent;
+}
+
+/* Tab 内容区域 */
+[data-theme="cinema"] .tab-content {
+    background: transparent;
+}
+
+/* 任务操作栏 */
+[data-theme="cinema"] .task-operations {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+/* 表单头部 */
+[data-theme="cinema"] .form-header {
+    background: transparent;
+}
+
+/* 搜索栏 */
+[data-theme="cinema"] .search-bar {
+    background: transparent;
+}
+
+/* 删除选项区域 */
+[data-theme="cinema"] .delete-cloud-options {
+    background: transparent;
+}
+
 /* 任务卡片 - 媒体墙视图 */
 [data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card,
 [data-theme="cinema"] .media-wall-card {
@@ -373,6 +406,10 @@
     --card-bg: rgba(30, 41, 59, 0.78);
     --shadow-color: rgba(0, 0, 0, 0.5);
     --thead-bg: rgba(15, 23, 42, 0.5);
+    --surface-muted: transparent;
+    --header-surface: transparent;
+    --panel-surface: transparent;
+    --panel-border: rgba(99, 102, 241, 0.15);
 }
 
 /* 影院模式下确保内容层在背景之上 */
