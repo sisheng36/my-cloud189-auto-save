@@ -230,7 +230,7 @@ class CinemaBackground {
                 await Promise.race([
                     Promise.all(loadPromises),
                     new Promise(resolve => setTimeout(resolve, 2000))
-                });
+                ]);
 
                 // 再等待一下让 enrichTaskTmdb 完成异步加载
                 await new Promise(resolve => setTimeout(resolve, 500));
