@@ -155,10 +155,13 @@ class CinemaBackground {
     async activate() {
         if (this.isActive) return;
 
+        console.log('[CinemaBackground] 激活影院模式');
         this.isActive = true;
 
         // 加载海报列表
         await this.loadPosters();
+
+        console.log('[CinemaBackground] 海报数量:', this.posters.length);
 
         // 如果有海报，开始轮换
         if (this.posters.length >= this.config.minPosters) {
@@ -166,6 +169,7 @@ class CinemaBackground {
             this.startRotation();
         } else {
             // 无海报时显示默认渐变背景
+            console.log('[CinemaBackground] 无海报，显示默认渐变背景');
             this.container.classList.add('no-posters');
         }
     }
@@ -189,6 +193,8 @@ class CinemaBackground {
             const response = await fetch('/api/tasks?status=all&search=');
             const data = await response.json();
 
+            console.log('[CinemaBackground] 任务数据:', data.data?.length, '个任务');
+
             if (data.success && Array.isArray(data.data)) {
                 this.posters = data.data
                     .filter(task => task.tmdbContent)
@@ -199,6 +205,8 @@ class CinemaBackground {
                         logo: this.extractLogo(task)
                     }))
                     .filter(p => p.poster);
+
+                console.log('[CinemaBackground] 提取到海报:', this.posters.length, '张');
 
                 // 预加载前几张海报
                 this.preloadImages();
@@ -334,6 +342,8 @@ class CinemaBackground {
             this.advanceIndex();
             return;
         }
+
+        console.log('[CinemaBackground] 显示海报:', poster.name, poster.poster);
 
         // 设置下一帧图片
         this.nextLayer.style.backgroundImage = `url('${poster.poster}')`;

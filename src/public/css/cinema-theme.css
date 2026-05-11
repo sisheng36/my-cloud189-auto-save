@@ -371,13 +371,20 @@
 
 /* 影院模式下 body 背景透明，露出底层海报 */
 [data-theme="cinema"] body {
-    background-color: transparent;
-    background-image: none;
+    background-color: transparent !important;
+    background-image: none !important;
 }
 
+/* 移除影院模式下的 body 装饰元素 */
 [data-theme="cinema"] body::before,
 [data-theme="cinema"] body::after {
     display: none !important;
+    content: none !important;
+}
+
+/* 确保 html 元素也透明 */
+[data-theme="cinema"] html {
+    background-color: transparent;
 }
 
 /* ============================================

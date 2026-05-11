@@ -265,59 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // 初始化用户下拉菜单
-    const userProfile = document.querySelector('.user-profile');
-    if (userProfile) {
-        userProfile.style.cursor = 'pointer';
-        userProfile.addEventListener('click', () => {
-            message.info('用户管理功能开发中，敬请期待');
-        });
-    }
-    
-    // 初始化搜索框
-    const globalSearch = document.getElementById('globalSearch');
-    if (globalSearch) {
-        globalSearch.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const query = globalSearch.value.trim();
-                if (query) {
-                    taskFilterParams.search = query;
-                    fetchTasks();
-                }
-            }
-        });
-        
-        globalSearch.addEventListener('input', debounce(() => {
-            taskFilterParams.search = globalSearch.value.trim();
-            fetchTasks();
-        }, 500));
-    }
-    
-    // 初始化主题切换（简单模式）
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-        let isDark = localStorage.getItem('theme') === 'dark';
-        
-        const updateTheme = () => {
-            if (isDark) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeToggle.innerHTML = '<i class="ph ph-sun" style="font-size: 18px; color: #f1f5f9;"></i>';
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.documentElement.removeAttribute('data-theme');
-                themeToggle.innerHTML = '<i class="ph ph-moon" style="font-size: 18px; color: #64748b;"></i>';
-                localStorage.setItem('theme', 'light');
-            }
-        };
-        
-        updateTheme();
-        
-        themeToggle.addEventListener('click', () => {
-            isDark = !isDark;
-            updateTheme();
-        });
-    }
-    
+    // 主题切换由 theme.js 的 initTheme() 统一处理
+
     // 加载版本号和仪表盘
     loadVersion();
     loadDashboardStats();
