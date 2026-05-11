@@ -62,6 +62,11 @@ class MessageUtil {
     async sendScrapeMessage(message) {
         await messageManager.sendScrapeMessage(message);
     }
+
+    // 只触发自定义 webhook，不影响常规通知渠道。
+    async sendWebhookMessage(message) {
+        await messageManager.sendWebhookMessage(message);
+    }
 }
 
 module.exports = { MessageUtil };

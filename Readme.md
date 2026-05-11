@@ -6,7 +6,7 @@
         <img src="https://img.shields.io/badge/Docker-Images-blue?style=flat-square&logo=docker" alt="Docker">
     </a>
     <a href="https://github.com/ymting/my-cloud189-auto-save/releases">
-        <img src="https://img.shields.io/badge/Version-2.2.63-green?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/Version-2.2.64-green?style=flat-square" alt="Version">
     </a>
 </div>
 
@@ -176,7 +176,7 @@
 }
 ```
 
-这样转存完成后会自动触发 SmartStrm 生成 STRM 文件。
+这样有新增文件时，会在自动重命名等后处理完成后触发 SmartStrm 生成 STRM 文件，避免下游系统过早处理未重命名文件。
 
 #### 相关链接
 
@@ -231,6 +231,13 @@ docker run -d \
 ---
 
 ## 📋 版本更新日志
+
+### v2.2.64 (2026-05-11)
+
+- 自定义 webhook 触发时机优化：有新增文件时，在自动重命名后处理完成后触发，避免转存完成阶段过早触发下游系统
+- webhook 通知补充 `📁` 保存路径，`{savePath}` 可稳定传递最终目录给 SmartStrm 等外部服务
+- 自定义 webhook 与普通通知通道隔离：微信、Telegram、Bark 等常规通知不影响 webhook 触发
+- 修复 TMDB 绑定/手动重命名通知缺少保存路径的问题
 
 ### v2.2.63 (2026-05-08)
 

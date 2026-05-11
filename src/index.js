@@ -593,7 +593,11 @@ AppDataSource.initialize().then(async () => {
                     
                     let message = '';
                     if (result && result.newFiles && result.newFiles.length > 0) {
+                        const folderPath = task.realFolderName || task.realFolderId || '';
                         message = `✅《${task.resourceName}》TMDB绑定并重命名完成\n已处理 ${result.newFiles.length} 个文件`;
+                        if (folderPath) {
+                            message += `\n📁 ${folderPath}`;
+                        }
                         if (result.renameMessages && result.renameMessages.length > 0) {
                             const details = result.renameMessages.slice(0, 10);
                             message += `\n${details.join('\n')}`;
@@ -871,7 +875,11 @@ AppDataSource.initialize().then(async () => {
             const result = await taskService.autoRename(cloud189, task);
             let message = '';
             if (result && result.newFiles && result.newFiles.length > 0) {
+                const folderPath = task.realFolderName || task.realFolderId || '';
                 message = `✅《${task.resourceName}》重命名完成\n已处理 ${result.newFiles.length} 个文件`;
+                if (folderPath) {
+                    message += `\n📁 ${folderPath}`;
+                }
                 if (result.renameMessages && result.renameMessages.length > 0) {
                     const details = result.renameMessages.slice(0, 10);
                     message += `\n${details.join('\n')}`;

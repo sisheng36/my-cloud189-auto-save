@@ -91,6 +91,20 @@ class MessageManager {
         );
         return results;
     }
+
+    /**
+     * 只发送到自定义 webhook，用于任务后处理阶段触发下游系统。
+     * @param {string} message - 要发送的消息内容
+     * @returns {Promise<Array<boolean>>} - 各个自定义 webhook 的发送结果
+     */
+    async sendWebhookMessage(message) {
+        const results = await Promise.all(
+            this.services
+                .filter(service => typeof service.sendWebhookMessage === 'function')
+                .map(service => service.sendWebhookMessage(message))
+        );
+        return results;
+    }
 }
 
 module.exports = new MessageManager();

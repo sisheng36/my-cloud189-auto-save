@@ -160,6 +160,14 @@ class CustomPushService extends MessageService {
         if (!this.enabled) {
             return;
         }
+        // 自定义 webhook 由任务事件显式触发，普通通知不直接触发，避免转存完成消息早于后处理阶段执行。
+        return true;
+    }
+
+    async sendWebhookMessage(message, title = '应用通知') {
+        if (!this.enabled) {
+            return false;
+        }
         let allSuccess = true;
         for (const config of this.customPushConfigs) {
             if (config && config.enabled) {
@@ -176,24 +184,8 @@ class CustomPushService extends MessageService {
         if (!this.enabled) {
             return;
         }
-        const baseTitle = scrapeMessage.title || '刮削通知';
-        let content = scrapeMessage.content || '';
-        if(scrapeMessage.posterUrl) {
-            content += `\n海报: ${scrapeMessage.posterUrl}`;
-        }
-
-        let allSuccess = true;
-        for (const config of this.customPushConfigs) {
-            if (config && config.enabled) {
-                // 你可能需要根据新的配置结构调整标题的生成方式，或者在配置中添加类似字段
-                const pushTitle = config.scrapeTitleTemplate ? this._replacePlaceholders(config.scrapeTitleTemplate, baseTitle, content) : baseTitle;
-                const success = await this._sendSingleRequest(pushTitle, content, config);
-                if (!success) {
-                    allSuccess = false;
-                }
-            }
-        }
-        return allSuccess;
+        // 自定义 webhook 只用于新增文件后处理阶段的联动，刮削通知不触发外部 webhook。
+        return true;
     }
 
     // 测试推送
