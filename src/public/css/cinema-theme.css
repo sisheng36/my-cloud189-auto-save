@@ -191,8 +191,9 @@
 }
 
 /* 任务卡片 - 媒体墙视图 */
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card,
 [data-theme="cinema"] .media-wall-card {
-    background: rgba(30, 41, 59, 0.78);
+    background: rgba(30, 41, 59, 0.78) !important;
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(99, 102, 241, 0.18);
@@ -201,18 +202,24 @@
         0 0 0 1px rgba(99, 102, 241, 0.08);
 }
 
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card:hover,
 [data-theme="cinema"] .media-wall-card:hover {
-    background: rgba(30, 41, 59, 0.85);
+    background: rgba(30, 41, 59, 0.85) !important;
     border-color: rgba(99, 102, 241, 0.35);
     box-shadow:
         0 12px 48px rgba(0, 0, 0, 0.6),
         0 0 24px rgba(99, 102, 241, 0.15);
 }
 
+/* 影院模式下移除媒体墙卡片的渐变遮罩 */
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card::before {
+    background: transparent !important;
+}
+
 /* 任务卡片 - 表格视图 */
 [data-theme="cinema"] #taskTable tr,
 [data-theme="cinema"] #accountTable tr {
-    background: rgba(30, 41, 59, 0.75);
+    background: rgba(30, 41, 59, 0.75) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(99, 102, 241, 0.1);

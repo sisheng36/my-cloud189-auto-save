@@ -895,6 +895,24 @@ tbody th:last-child {
     box-shadow: 0 22px 50px rgba(2, 6, 23, 0.52);
 }
 
+/* 影院模式媒体墙卡片 */
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card {
+    background: rgba(30, 41, 59, 0.78) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.18);
+}
+
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card:hover {
+    background: rgba(30, 41, 59, 0.85) !important;
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(99, 102, 241, 0.15);
+}
+
+[data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card::before {
+    background: transparent !important;
+}
+
 /* 添加任务占位卡片样式 */
 [data-ui-style="media"] .add-task-placeholder {
     background: transparent !important;

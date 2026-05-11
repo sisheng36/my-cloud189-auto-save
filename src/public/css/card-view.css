@@ -41,6 +41,15 @@
     backdrop-filter: blur(8px);
 }
 
+[data-theme="cinema"] #taskTable tr,
+[data-theme="cinema"] #accountTable tr {
+    background: rgba(30, 41, 59, 0.7) !important;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 16px rgba(99, 102, 241, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
 #taskTable tr:hover,
 #accountTable tr:hover {
     transform: translateY(-2px);
@@ -51,6 +60,13 @@
 [data-theme="dark"] #accountTable tr:hover {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 24px rgba(99, 102, 241, 0.12);
     border-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="cinema"] #taskTable tr:hover,
+[data-theme="cinema"] #accountTable tr:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 24px rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.25);
+    background: rgba(30, 41, 59, 0.85) !important;
 }
 
 #taskTable td,

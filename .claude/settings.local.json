@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wslpath -u \"C:/Users/tingyu/.claude/plans\")",
+      "Bash(node --check src/public/js/cinema-background.js)",
+      "Bash(xxd src/public/js/cinema-background.js)",
+      "Bash(npx acorn:*)",
+      "Bash(node -e ':*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
