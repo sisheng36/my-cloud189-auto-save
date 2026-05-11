@@ -909,12 +909,27 @@ class TaskService {
         
         taskDto.taskName = standardName;
         shareInfo.fileName = standardName;
-        
+
         if (tmdbInfo) {
             taskDto.tmdbId = tmdbInfo.id;
             taskDto.videoType = tmdbInfo.type;
+
+            // 获取完整的 TMDB 详情信息（包含海报、简介等），避免 Web 端再次搜索
+            try {
+                const tmdbService = new TMDBService();
+                const detail = tmdbInfo.type === 'movie'
+                    ? await tmdbService.getMovieDetails(tmdbInfo.id)
+                    : await tmdbService.getTVDetails(tmdbInfo.id);
+
+                if (detail) {
+                    taskDto.tmdbContent = JSON.stringify(detail);
+                    logTaskEvent(`[任务创建] ✅ 已获取 TMDB 详情信息（海报、简介等）`);
+                }
+            } catch (error) {
+                logTaskEvent(`[任务创建] ⚠️ 获取 TMDB 详情失败: ${error.message}`);
+            }
         }
-        
+
         logTaskEvent(`[任务创建] 最终任务名称: "${standardName}"`);
         taskDto.isFolder = true
         await this.increaseShareFileAccessCount(cloud189, shareInfo.shareId)
