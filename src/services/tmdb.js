@@ -340,10 +340,23 @@ class TMDBService {
                 });
                 response.images = imagesResponse;
             }
+            
+            // 获取英文标题用于匹配
+            let englishTitle = null;
+            try {
+                const enResponse = await this._request(`/movie/${id}`, {
+                    language: 'en-US'
+                });
+                englishTitle = enResponse.title;
+            } catch (e) {
+                // 忽略错误
+            }
+            
             return {
                 id: response.id,
                 title: response.title,
                 originalTitle: response.original_title,
+                englishTitle: englishTitle,  // 英文标题
                 overview: response.overview,
                 releaseDate: response.release_date,
                 posterPath: response.poster_path ? `https://image.tmdb.org/t/p/w500${response.poster_path}` : null,
