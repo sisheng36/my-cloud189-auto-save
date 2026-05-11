@@ -70,6 +70,14 @@ class CustomPushService extends MessageService {
         return newObj;
     }
 
+    // 自定义 webhook 主要用于联动下游自动化任务，只在重命名成功后触发，避免转存完成阶段提前执行。
+    _shouldTriggerWebhook(content) {
+        return typeof content === 'string'
+            && content.includes('重命名完成')
+            && !content.includes('无需重命名')
+            && !content.includes('重命名失败');
+    }
+
     async _sendSingleRequest(title, content, singlePushConfig) {
         if (!singlePushConfig || !singlePushConfig.enabled) {
             return false;
@@ -160,6 +168,9 @@ class CustomPushService extends MessageService {
         if (!this.enabled) {
             return;
         }
+        if (!this._shouldTriggerWebhook(message)) {
+            return true;
+        }
         let allSuccess = true;
         for (const config of this.customPushConfigs) {
             if (config && config.enabled) {
@@ -176,24 +187,8 @@ class CustomPushService extends MessageService {
         if (!this.enabled) {
             return;
         }
-        const baseTitle = scrapeMessage.title || '刮削通知';
-        let content = scrapeMessage.content || '';
-        if(scrapeMessage.posterUrl) {
-            content += `\n海报: ${scrapeMessage.posterUrl}`;
-        }
-
-        let allSuccess = true;
-        for (const config of this.customPushConfigs) {
-            if (config && config.enabled) {
-                // 你可能需要根据新的配置结构调整标题的生成方式，或者在配置中添加类似字段
-                const pushTitle = config.scrapeTitleTemplate ? this._replacePlaceholders(config.scrapeTitleTemplate, baseTitle, content) : baseTitle;
-                const success = await this._sendSingleRequest(pushTitle, content, config);
-                if (!success) {
-                    allSuccess = false;
-                }
-            }
-        }
-        return allSuccess;
+        // 自定义 webhook 只用于重命名完成后的联动，刮削通知不触发外部 webhook。
+        return true;
     }
 
     // 测试推送
