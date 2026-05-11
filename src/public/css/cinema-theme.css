@@ -328,8 +328,13 @@
     border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
+[data-theme="cinema"] .more-actions-item {
+    color: #f1f5f9;
+}
+
 [data-theme="cinema"] .more-actions-item:hover {
     background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
 }
 
 /* 通知下拉框 */
@@ -487,4 +492,61 @@
     [data-theme="cinema"] .modal-content {
         background: rgba(30, 41, 59, 0.98);
     }
+}
+
+/* ============================================
+   影院模式 - 删除确认弹窗适配
+   ============================================ */
+
+[data-theme="cinema"] .delete-confirm-content {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+[data-theme="cinema"] .delete-confirm-header {
+    border-bottom-color: rgba(99, 102, 241, 0.12);
+}
+
+[data-theme="cinema"] .delete-confirm-header h3 {
+    color: #f1f5f9;
+}
+
+[data-theme="cinema"] .delete-confirm-body p {
+    color: #94a3b8;
+}
+
+[data-theme="cinema"] .delete-confirm-body .task-name {
+    color: #e2e8f0;
+}
+
+[data-theme="cinema"] .delete-cloud-checkbox {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+[data-theme="cinema"] .delete-cloud-checkbox:hover {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+[data-theme="cinema"] .delete-cloud-checkbox span {
+    color: #e2e8f0;
+}
+
+[data-theme="cinema"] .delete-confirm-footer {
+    background: rgba(15, 23, 42, 0.6);
+    border-top-color: rgba(99, 102, 241, 0.12);
+}
+
+[data-theme="cinema"] .btn-cancel {
+    background: rgba(30, 41, 59, 0.9);
+    color: #e2e8f0;
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="cinema"] .btn-cancel:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
 }

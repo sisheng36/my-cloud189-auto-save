@@ -701,7 +701,7 @@ tbody th:last-child {
     color: #f8fafc;
     padding: 20px;
     padding-top: 60px;
-    padding-bottom: 140px;
+    padding-bottom: 160px;
     font-size: 13px;
     line-height: 1.6;
     opacity: 0;
@@ -710,7 +710,7 @@ tbody th:last-child {
     z-index: 10;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 10;
+    -webkit-line-clamp: 6;
     -webkit-box-orient: vertical;
     text-overflow: ellipsis;
 }
