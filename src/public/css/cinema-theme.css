@@ -260,7 +260,8 @@
 
 /* 表格容器 */
 [data-theme="cinema"] .table-container {
-    background: transparent;
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 /* 弹窗 */
