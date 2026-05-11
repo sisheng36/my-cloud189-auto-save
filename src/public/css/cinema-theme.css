@@ -1,0 +1,466 @@
+/* ============================================
+   影院模式（Cinema Mode）主题样式
+   版本：v1.1
+   更新日期：2026-05-11
+   ============================================ */
+
+/* ============================================
+   影院模式 - 背景容器
+   ============================================ */
+
+.cinema-bg-container {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+    pointer-events: none;
+}
+
+/* 影院模式激活 */
+[data-theme="cinema"] .cinema-bg-container {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ============================================
+   影院模式 - 双缓冲图层
+   ============================================ */
+
+.cinema-bg-layer {
+    position: absolute;
+    inset: -40px;  /* 略大于视口，避免边缘露出 */
+    background-color: #0f172a;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    /* 视觉效果处理 */
+    filter: blur(35px) saturate(1.3) brightness(0.6);
+    transform: scale(1.15);
+
+    /* 过渡动画 */
+    transition: opacity 1.8s ease-in-out;
+
+    /* GPU 加速 */
+    will-change: opacity, background-image;
+}
+
+/* 当前显示层 */
+.cinema-bg-current {
+    opacity: 1;
+    z-index: 1;
+}
+
+/* 下一帧预加载层 */
+.cinema-bg-next {
+    opacity: 0;
+    z-index: 2;
+}
+
+/* 无海报时的默认背景 - 动态渐变 */
+.cinema-bg-container.no-posters .cinema-bg-current {
+    background: linear-gradient(
+        135deg,
+        #0f172a 0%,
+        #1e1b4b 30%,
+        #312e81 50%,
+        #1e1b4b 70%,
+        #0f172a 100%
+    );
+    background-size: 400% 400%;
+    animation: cinemaGradientShift 20s ease infinite;
+}
+
+@keyframes cinemaGradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* ============================================
+   影院模式 - 毛玻璃遮罩
+   ============================================ */
+
+.cinema-bg-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+
+    /* 多层渐变遮罩 */
+    background:
+        /* 顶部渐变 - 让顶栏可见 */
+        linear-gradient(
+            180deg,
+            rgba(15, 23, 42, 0.75) 0%,
+            rgba(15, 23, 42, 0.5) 80px,
+            transparent 120px
+        ),
+        /* 底部渐变 - 让底部内容可见 */
+        linear-gradient(
+            0deg,
+            rgba(15, 23, 42, 0.85) 0%,
+            rgba(15, 23, 42, 0.4) 60px,
+            transparent 100px
+        ),
+        /* 全局遮罩 - 保证可读性 */
+        linear-gradient(
+            180deg,
+            rgba(15, 23, 42, 0.55) 0%,
+            rgba(15, 23, 42, 0.7) 40%,
+            rgba(15, 23, 42, 0.75) 60%,
+            rgba(15, 23, 42, 0.7) 100%
+        );
+
+    /* 毛玻璃效果 */
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+}
+
+/* ============================================
+   影院模式 - 锁定指示器
+   ============================================ */
+
+.cinema-locked-indicator {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+
+    background: rgba(99, 102, 241, 0.95);
+    color: #fff;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-family);
+
+    box-shadow:
+        0 4px 20px rgba(99, 102, 241, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+
+    z-index: 1001;
+    opacity: 0;
+    transform: translateY(20px) scale(0.9);
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.cinema-locked-indicator.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.cinema-locked-indicator i {
+    font-size: 16px;
+}
+
+.cinema-locked-text {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================
+   影院模式 - UI 组件适配
+   ============================================ */
+
+/* 侧边栏 */
+[data-theme="cinema"] .sidebar {
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-right: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+/* 顶部栏 */
+[data-theme="cinema"] .topbar {
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.08);
+}
+
+/* 页面容器 */
+[data-theme="cinema"] .page-container {
+    background: transparent;
+}
+
+/* 任务卡片 - 媒体墙视图 */
+[data-theme="cinema"] .media-wall-card {
+    background: rgba(30, 41, 59, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(99, 102, 241, 0.08);
+}
+
+[data-theme="cinema"] .media-wall-card:hover {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow:
+        0 12px 48px rgba(0, 0, 0, 0.6),
+        0 0 24px rgba(99, 102, 241, 0.15);
+}
+
+/* 任务卡片 - 表格视图 */
+[data-theme="cinema"] #taskTable tr,
+[data-theme="cinema"] #accountTable tr {
+    background: rgba(30, 41, 59, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+/* 表格容器 */
+[data-theme="cinema"] .table-container {
+    background: transparent;
+}
+
+/* 弹窗 */
+[data-theme="cinema"] .modal-content {
+    background: rgba(30, 41, 59, 0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+}
+
+/* 设置卡片 */
+[data-theme="cinema"] .settings-card {
+    background: rgba(30, 41, 59, 0.8);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+/* 设置卡片头部 */
+[data-theme="cinema"] .settings-card-header {
+    background: rgba(99, 102, 241, 0.08);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+/* 设置项 */
+[data-theme="cinema"] .settings-item {
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid rgba(99, 102, 241, 0.08);
+}
+
+[data-theme="cinema"] .settings-item:hover {
+    background: rgba(15, 23, 42, 0.5);
+    border-color: rgba(99, 102, 241, 0.15);
+}
+
+/* 输入框 */
+[data-theme="cinema"] input,
+[data-theme="cinema"] select,
+[data-theme="cinema"] textarea {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="cinema"] input:focus,
+[data-theme="cinema"] select:focus,
+[data-theme="cinema"] textarea:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* 按钮 */
+[data-theme="cinema"] .btn-default {
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #f1f5f9;
+}
+
+[data-theme="cinema"] .btn-default:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* 添加任务占位卡片 */
+[data-theme="cinema"] .add-task-placeholder {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border: 2px dashed rgba(99, 102, 241, 0.4) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* 面板卡片 */
+[data-theme="cinema"] .panel-card {
+    background: rgba(30, 41, 59, 0.78);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+/* 统计卡片 */
+[data-theme="cinema"] .hero-stat-card {
+    background: rgba(30, 41, 59, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+/* 主题下拉菜单 */
+[data-theme="cinema"] .theme-dropdown {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="cinema"] .theme-option:hover {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+/* 更多操作菜单 */
+[data-theme="cinema"] .more-actions-menu {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="cinema"] .more-actions-item:hover {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+/* 通知下拉框 */
+[data-theme="cinema"] .notification-dropdown {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* ============================================
+   影院模式 - CSS 变量覆盖
+   ============================================ */
+
+[data-theme="cinema"] {
+    --bg-color: transparent;
+    --bg-main: transparent;
+    --background-color: transparent;
+    --bg-sidebar: rgba(15, 23, 42, 0.88);
+    --bg-card: rgba(30, 41, 59, 0.78);
+    --hover-color: rgba(99, 102, 241, 0.15);
+    --hover-bg: rgba(99, 102, 241, 0.15);
+    --text-color: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: rgba(99, 102, 241, 0.15);
+    --container-bg: transparent;
+    --input-bg: rgba(15, 23, 42, 0.9);
+    --input-border: rgba(99, 102, 241, 0.2);
+    --card-bg: rgba(30, 41, 59, 0.78);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --thead-bg: rgba(15, 23, 42, 0.5);
+}
+
+/* ============================================
+   影院模式 - 表格样式适配
+   ============================================ */
+
+[data-theme="cinema"] #taskTable thead,
+[data-theme="cinema"] #accountTable thead {
+    background: rgba(15, 23, 42, 0.5);
+}
+
+[data-theme="cinema"] #taskTable thead th,
+[data-theme="cinema"] #accountTable thead th {
+    background: rgba(15, 23, 42, 0.5);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+[data-theme="cinema"] #taskTable td,
+[data-theme="cinema"] #accountTable td {
+    border-color: rgba(99, 102, 241, 0.08);
+}
+
+/* ============================================
+   影院模式 - 表单样式适配
+   ============================================ */
+
+[data-theme="cinema"] .form-group label {
+    color: #e2e8f0;
+}
+
+[data-theme="cinema"] .form-text {
+    color: #94a3b8;
+}
+
+[data-theme="cinema"] .form-body {
+    background: transparent;
+}
+
+/* ============================================
+   影院模式 - 复选框/单选框适配
+   ============================================ */
+
+[data-theme="cinema"] input[type="checkbox"],
+[data-theme="cinema"] input[type="radio"] {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+[data-theme="cinema"] input[type="checkbox"]:checked,
+[data-theme="cinema"] input[type="radio"]:checked {
+    background: #6366f1;
+    border-color: #6366f1;
+}
+
+/* ============================================
+   影院模式 - 滚动条样式
+   ============================================ */
+
+[data-theme="cinema"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="cinema"] ::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+}
+
+[data-theme="cinema"] ::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.4);
+    border-radius: 4px;
+}
+
+[data-theme="cinema"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(99, 102, 241, 0.6);
+}
+
+/* ============================================
+   影院模式 - 兼容性降级
+   ============================================ */
+
+/* 不支持 backdrop-filter 的浏览器降级 */
+@supports not (backdrop-filter: blur(12px)) {
+    .cinema-bg-overlay {
+        background: rgba(15, 23, 42, 0.92);
+    }
+
+    [data-theme="cinema"] .sidebar {
+        background: rgba(15, 23, 42, 0.95);
+    }
+
+    [data-theme="cinema"] .topbar {
+        background: rgba(15, 23, 42, 0.92);
+    }
+
+    [data-theme="cinema"] .media-wall-card {
+        background: rgba(30, 41, 59, 0.95);
+    }
+
+    [data-theme="cinema"] .modal-content {
+        background: rgba(30, 41, 59, 0.98);
+    }
+}

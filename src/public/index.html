@@ -34,6 +34,7 @@
     <link rel="stylesheet" href="/css/chat.css">
     <link rel="stylesheet" href="/css/ui-themes.css">
     <link rel="stylesheet" href="/css/ai-confirm-dialog.css">
+    <link rel="stylesheet" href="/css/cinema-theme.css">
 </head>
 <body>
     <div class="app-layout">
@@ -97,6 +98,20 @@
                         <button id="themeToggle" class="theme-toggle-btn">
                             <i class="ph ph-moon"></i>
                         </button>
+                        <div id="themeDropdown" class="theme-dropdown">
+                            <div class="theme-option" data-theme="light">
+                                <i class="ph ph-sun"></i> 浅色模式
+                            </div>
+                            <div class="theme-option" data-theme="dark">
+                                <i class="ph ph-moon"></i> 深色模式
+                            </div>
+                            <div class="theme-option" data-theme="auto">
+                                <i class="ph ph-desktop"></i> 跟随系统
+                            </div>
+                            <div class="theme-option" data-theme="cinema">
+                                <i class="ph ph-film-strip"></i> 影院模式
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -1039,7 +1054,8 @@
 <script src="/js/ai-confirm-dialog.js"></script>
 <script src="/js/chat.js"></script>
 <script src="/js/strm.js"></script>
-<script src="/js/customPush.js"></script> 
+<script src="/js/customPush.js"></script>
+<script src="/js/cinema-background.js"></script>
 
 
 </body>

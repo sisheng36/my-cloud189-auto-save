@@ -328,6 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initEditTaskForm();
     // 初始化主题
     initTheme();
+
+    // 初始化影院背景（如果当前是影院模式）
+    if (localStorage.getItem('theme') === 'cinema' && typeof initCinemaBackground === 'function') {
+        initCinemaBackground();
+    }
+
     // 初始化日志
     initLogs()
 

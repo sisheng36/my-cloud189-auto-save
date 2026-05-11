@@ -408,6 +408,11 @@ async function fetchTasks() {
             `;
         });
     }
+
+    // 刷新影院背景海报列表（如果影院模式已激活）
+    if (typeof refreshCinemaBackground === 'function') {
+        refreshCinemaBackground();
+    }
 }
 
  // 删除任务

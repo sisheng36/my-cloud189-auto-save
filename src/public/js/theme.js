@@ -1,25 +1,24 @@
 
 
-
 function initTheme() {
     const themeToggle = document.getElementById('themeToggle');
     const themeDropdown = document.getElementById('themeDropdown');
     const savedTheme = localStorage.getItem('theme') || 'auto';
-    
+
     // 设置初始主题
     setTheme(savedTheme);
-    
+
     // 切换下拉菜单显示
     themeToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         themeDropdown.classList.toggle('show');
     });
-    
+
     // 点击其他地方关闭下拉菜单
     document.addEventListener('click', () => {
         themeDropdown.classList.remove('show');
     });
-    
+
     // 主题选项点击事件
     document.querySelectorAll('.theme-option').forEach(option => {
         option.addEventListener('click', (e) => {
@@ -44,11 +43,24 @@ function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', currentTheme);
         document.querySelector('meta[name="theme-color"]').setAttribute('content', statusBarColor);
     };
+
+    // 影院模式处理
+    if (theme === 'cinema') {
+        document.documentElement.setAttribute('data-theme', 'cinema');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0f172a');
+
+        // 初始化影院背景（如果尚未初始化）
+        if (typeof initCinemaBackground === 'function') {
+            initCinemaBackground();
+        }
+        return;
+    }
+
     if (theme === 'auto') {
         // 检查系统主题
         const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         updateThemeAndStatusBar(darkModeMediaQuery.matches);
-        
+
         // 监听系统主题变化
         darkModeMediaQuery.addEventListener('change', e => {
             updateThemeAndStatusBar(e.matches);
