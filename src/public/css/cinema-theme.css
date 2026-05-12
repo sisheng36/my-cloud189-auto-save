@@ -304,6 +304,28 @@
     border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
+/* 账号管理表格：覆盖账号分组行的行内背景和通用 td/th 浅色背景。 */
+[data-theme="cinema"] #accountTable tr.family-group-header,
+[data-theme="cinema"] #accountTable tr.family-group-row {
+    background: rgba(15, 23, 42, 0.46) !important;
+    background-color: rgba(15, 23, 42, 0.46) !important;
+    color: #f1f5f9 !important;
+    border-color: rgba(99, 102, 241, 0.24) !important;
+}
+
+[data-theme="cinema"] #accountTable tr.family-group-header td,
+[data-theme="cinema"] #accountTable tr.family-group-row td,
+[data-theme="cinema"] #accountTable th {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #e2e8f0 !important;
+}
+
+[data-theme="cinema"] #accountTable tr.family-group-row:hover {
+    background: rgba(15, 23, 42, 0.58) !important;
+    background-color: rgba(15, 23, 42, 0.58) !important;
+}
+
 /* 表格容器 */
 [data-theme="cinema"] .table-container {
     background: transparent !important;
@@ -463,6 +485,7 @@
     --bg-card: rgba(30, 41, 59, 0.78);
     --hover-color: rgba(99, 102, 241, 0.15);
     --hover-bg: rgba(99, 102, 241, 0.15);
+    --text-main: #f1f5f9;
     --text-color: #f1f5f9;
     --text-muted: #94a3b8;
     --border-color: rgba(99, 102, 241, 0.15);
