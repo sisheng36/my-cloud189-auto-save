@@ -2344,7 +2344,16 @@ class TaskService {
     // options: { skipDeletion: boolean } - 跳过去重删除（TMDB绑定后使用）
     async autoRename(cloud189, task, options = {}) {
         const { skipDeletion = false } = options;
-        if ((!task.sourceRegex || !task.targetRegex) && !AIService.isEnabled()) return [];
+
+        // 入口条件检查：
+        // 1. 有正则表达式 → 可以执行
+        // 2. AI 服务启用 → 可以执行
+        // 3. 已绑定 TMDB（有 tmdbId + videoType）→ 可以执行（TMDB 快速命名）
+        // 以上条件都不满足 → 直接返回空
+        const hasRegex = task.sourceRegex && task.targetRegex;
+        const hasTmdb = task.tmdbId && task.videoType;
+        if (!hasRegex && !AIService.isEnabled() && !hasTmdb) return [];
+
         let message = []
         let newFiles = [];
         let files = [];
@@ -2380,31 +2389,63 @@ class TaskService {
             }
         }
 
-        if (AIService.isEnabled() && (!task.sourceRegex || !task.targetRegex)) {
-            logTaskEvent(` ${task.resourceName} 开始使用 AI 重命名`);
-            try {
-                const resourceInfo = await this._analyzeResourceInfo(
-                    task.resourceName,
-                    files.map(f => ({ id: f.id, name: f.name })),
-                    'file',
-                    task
-                );
-                
-                if (resourceInfo && resourceInfo.tmdbId) {
-                    tmdbInfo = {
-                        id: String(resourceInfo.tmdbId),
-                        title: resourceInfo.name,
-                        type: task.videoType || 'tv',
-                        year: resourceInfo.year
-                    };
+        // 判断使用哪种重命名方式：
+        // 1. 已绑定 TMDB → TMDB 快速命名（不需要 AI）
+        // 2. AI 启用且无正则 → AI 重命名（包含 TMDB 搜索和 AI 分析）
+        // 3. 有正则 → 正则表达式重命名
+        const hasTmdbBound = task.tmdbId && task.videoType;
+        const useTmdbFastTrack = hasTmdbBound; // TMDB 快速命名
+        const useAiRename = !useTmdbFastTrack && AIService.isEnabled() && !hasRegex; // AI 重命名
+        const useRegexRename = !useTmdbFastTrack && !useAiRename && hasRegex; // 正则重命名
+
+        if (useTmdbFastTrack || useAiRename) {
+            const renameType = useTmdbFastTrack ? 'TMDB 快速命名' : 'AI 重命名';
+            logTaskEvent(` ${task.resourceName} 开始使用 ${renameType}`);
+
+            // 重试机制：解决偶发网络问题
+            const MAX_RETRIES = 3;
+            const RETRY_DELAY = 3000; // 3秒
+            let lastError = null;
+            let renameSuccess = false;
+
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    if (attempt > 1) {
+                        logTaskEvent(`${renameType}第 ${attempt}/${MAX_RETRIES} 次重试...`);
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+                    }
+
+                    const resourceInfo = await this._analyzeResourceInfo(
+                        task.resourceName,
+                        files.map(f => ({ id: f.id, name: f.name })),
+                        'file',
+                        task
+                    );
+
+                    if (resourceInfo && resourceInfo.tmdbId) {
+                        tmdbInfo = {
+                            id: String(resourceInfo.tmdbId),
+                            title: resourceInfo.name,
+                            type: task.videoType || 'tv',
+                            year: resourceInfo.year
+                        };
+                    }
+
+                    await this._processRename(cloud189, task, files, resourceInfo, message, newFiles, baseNameMap, getBaseName, isMediaFile, skipDeletion);
+                    renameSuccess = true;
+                    break; // 成功则跳出重试循环
+                } catch (error) {
+                    lastError = error;
+                    logTaskEvent(`${renameType}第 ${attempt} 次尝试失败: ${error.message}`);
                 }
-                
-                await this._processRename(cloud189, task, files, resourceInfo, message, newFiles, baseNameMap, getBaseName, isMediaFile, skipDeletion);
-            } catch (error) {
-                logTaskEvent('AI 重命名失败，使用正则表达式重命名: ' + error.message);
+            }
+
+            if (!renameSuccess) {
+                // 重试耗尽后，降级到正则表达式
+                logTaskEvent(`${renameType}失败（已重试 ${MAX_RETRIES} 次），尝试使用正则表达式重命名: ${lastError?.message}`);
                 await this._processRegexRename(cloud189, task, files, message, newFiles, baseNameMap, getBaseName, isMediaFile, skipDeletion);
             }
-        } else {
+        } else if (useRegexRename) {
             logTaskEvent(` ${task.resourceName} 开始使用正则表达式重命名`);
             await this._processRegexRename(cloud189, task, files, message, newFiles, baseNameMap, getBaseName, isMediaFile, skipDeletion);
         }

@@ -172,14 +172,32 @@ class TaskEventHandler {
                     }
                 }
                 this.messageUtil.sendMessage(message);
-                
+
                 if (result.tmdbInfo) {
                     return { tmdbInfo: result.tmdbInfo };
                 }
+            } else {
+                // AI 重命名失败（网络问题等）且无正则降级
+                // 使用实际文件名通知（带路径，触发 webhook）
+                // 这样下游服务可以处理，文件名虽未规范化但不影响使用
+                const folderPath = task.realFolderName || task.realFolderId || '';
+                const videoType = task.videoType || 'tv';
+                const message = `⚠️《${task.resourceName}》转存成功但重命名失败\n` +
+                    `📁 ${folderPath}\n🎬 ${videoType}\n` +
+                    `请检查 AI 服务状态`;
+                this.messageUtil.sendMessage(message);
+                logTaskEvent(`AI 重命名失败，已发送带路径通知，路径: ${folderPath}`);
             }
         } catch (error) {
             console.error(error);
             logTaskEvent(`自动重命名失败: ${error.message}`);
+            // 异常情况也发送带路径通知
+            const folderPath = task.realFolderName || task.realFolderId || '';
+            const videoType = task.videoType || 'tv';
+            const message = `❌《${task.resourceName}》重命名异常\n` +
+                `📁 ${folderPath}\n🎬 ${videoType}\n` +
+                `错误: ${error.message}`;
+            this.messageUtil.sendMessage(message);
         }
         return null;
     }
