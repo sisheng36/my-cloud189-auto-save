@@ -3158,6 +3158,7 @@ class TaskService {
 
         // 先查找是否已存在 cas_temp 目录
         try {
+            logTaskEvent(`[家庭中转] 查找默认目录 cas_temp...`);
             const listResult = await familyCloud189.request('/api/open/family/file/listFiles.action', {
                 method: 'GET',
                 searchParams: {
@@ -3171,13 +3172,16 @@ class TaskService {
                 }
             });
 
+            logTaskEvent(`[家庭中转] 目录列表返回: ${listResult?.fileListAO?.folderList?.length || 0} 个文件夹`);
+
             if (listResult?.fileListAO?.folderList) {
                 const existingFolder = listResult.fileListAO.folderList.find(f => f.name === defaultFolderName);
                 if (existingFolder) {
-                    logTaskEvent(`[家庭中转] 使用已存在的默认目录: ${defaultFolderName}`);
+                    logTaskEvent(`[家庭中转] ✅ 使用已存在的默认目录: ${defaultFolderName} (ID: ${existingFolder.id})`);
                     return { folderId: existingFolder.id, isTemp: true, source: '默认目录 cas_temp' };
                 }
             }
+            logTaskEvent(`[家庭中转] 默认目录不存在，尝试创建...`);
         } catch (e) {
             logTaskEvent(`[家庭中转] 查找默认目录失败: ${e.message}`);
         }
@@ -3185,11 +3189,39 @@ class TaskService {
         // 不存在则创建
         const createResult = await familyCloud189.createFamilyFolder(familyId, defaultFolderName, familyRootFolderId);
         if (createResult.success && createResult.folderId) {
-            logTaskEvent(`[家庭中转] 创建默认目录: ${defaultFolderName}`);
+            logTaskEvent(`[家庭中转] ✅ 创建默认目录成功: ${defaultFolderName}`);
             return { folderId: createResult.folderId, isTemp: true, source: '默认目录 cas_temp' };
         }
 
-        // 4. 创建失败 → 使用家庭根目录
+        // 创建失败（可能是目录已存在），再次尝试查找
+        logTaskEvent(`[家庭中转] 创建失败，再次查找已存在的目录...`);
+        try {
+            const listResult2 = await familyCloud189.request('/api/open/family/file/listFiles.action', {
+                method: 'GET',
+                searchParams: {
+                    familyId,
+                    folderId: String(familyRootFolderId),
+                    pageNum: 1,
+                    pageSize: 100,
+                    mediaType: 0,
+                    orderBy: 3,
+                    descending: true
+                }
+            });
+
+            if (listResult2?.fileListAO?.folderList) {
+                const existingFolder = listResult2.fileListAO.folderList.find(f => f.name === defaultFolderName);
+                if (existingFolder) {
+                    logTaskEvent(`[家庭中转] ✅ 找到已存在的目录: ${defaultFolderName} (ID: ${existingFolder.id})`);
+                    return { folderId: existingFolder.id, isTemp: true, source: '默认目录 cas_temp' };
+                }
+            }
+        } catch (e) {
+            logTaskEvent(`[家庭中转] 二次查找失败: ${e.message}`);
+        }
+
+        // 4. 最终降级 → 使用家庭根目录
+        logTaskEvent(`[家庭中转] ⚠️ 降级使用家庭根目录`);
         return { folderId: familyRootFolderId, isTemp: false, source: '家庭根目录（创建失败）' };
     }
 
