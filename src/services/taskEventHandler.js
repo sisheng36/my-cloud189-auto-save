@@ -161,7 +161,11 @@ class TaskEventHandler {
             if (result && result.newFiles && result.newFiles.length > 0) {
                 taskCompleteEventDto.fileList = result.newFiles;
                 // 获取保存路径和视频类型用于 webhook 占位符
-                const folderPath = task.realFolderName || task.realFolderId || '';
+                // 确保路径以 / 开头（SmartStrm webhook 要求）
+                let folderPath = task.realFolderName || task.realFolderId || '';
+                if (folderPath && !folderPath.startsWith('/')) {
+                    folderPath = '/' + folderPath;
+                }
                 const videoType = task.videoType || 'tv'; // 默认剧集
                 let message = `✅《${task.resourceName}》重命名完成\n已处理 ${result.newFiles.length} 个文件\n📁 ${folderPath}\n🎬 ${videoType}`;
                 if (result.renameMessages && result.renameMessages.length > 0) {
@@ -180,7 +184,10 @@ class TaskEventHandler {
                 // AI 重命名失败（网络问题等）且无正则降级
                 // 使用实际文件名通知（带路径，触发 webhook）
                 // 这样下游服务可以处理，文件名虽未规范化但不影响使用
-                const folderPath = task.realFolderName || task.realFolderId || '';
+                let folderPath = task.realFolderName || task.realFolderId || '';
+                if (folderPath && !folderPath.startsWith('/')) {
+                    folderPath = '/' + folderPath;
+                }
                 const videoType = task.videoType || 'tv';
                 const message = `⚠️《${task.resourceName}》转存成功但重命名失败\n` +
                     `📁 ${folderPath}\n🎬 ${videoType}\n` +
@@ -192,7 +199,10 @@ class TaskEventHandler {
             console.error(error);
             logTaskEvent(`自动重命名失败: ${error.message}`);
             // 异常情况也发送带路径通知
-            const folderPath = task.realFolderName || task.realFolderId || '';
+            let folderPath = task.realFolderName || task.realFolderId || '';
+            if (folderPath && !folderPath.startsWith('/')) {
+                folderPath = '/' + folderPath;
+            }
             const videoType = task.videoType || 'tv';
             const message = `❌《${task.resourceName}》重命名异常\n` +
                 `📁 ${folderPath}\n🎬 ${videoType}\n` +

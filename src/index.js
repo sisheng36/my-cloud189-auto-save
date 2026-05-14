@@ -1154,7 +1154,11 @@ AppDataSource.initialize().then(async () => {
         if (successFiles.length > 0) {
             const { MessageUtil } = require('./services/message');
             const messageUtil = new MessageUtil();
-            const folderPath = task.realFolderName || task.realFolderId || '';
+            // 确保路径以 / 开头（SmartStrm webhook 要求）
+            let folderPath = task.realFolderName || task.realFolderId || '';
+            if (folderPath && !folderPath.startsWith('/')) {
+                folderPath = '/' + folderPath;
+            }
             const videoType = task.videoType || 'tv';
             const message = `✅《${task.resourceName}》重命名完成\n已处理 ${successFiles.length} 个文件\n📁 ${folderPath}\n🎬 ${videoType}`;
             messageUtil.sendMessage(message);
