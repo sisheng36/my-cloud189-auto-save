@@ -808,6 +808,67 @@ class Cloud189Service {
         }
     }
 
+    // 清空家庭回收站
+    async clearFamilyRecycleBin(familyId) {
+        try {
+            logTaskEvent(`[家庭中转] 开始清空家庭回收站...`);
+
+            // 获取回收站文件列表
+            const result = await this.request('/api/open/family/recycle/listRecycleFiles.action', {
+                method: 'GET',
+                searchParams: {
+                    familyId: String(familyId),
+                    pageNum: 1,
+                    pageSize: 500
+                }
+            });
+
+            if (!result || !result.fileListAO) {
+                logTaskEvent(`[家庭中转] 回收站为空，无需清理`);
+                return { success: true, deletedCount: 0 };
+            }
+
+            const fileList = result.fileListAO.fileList || [];
+            const folderList = result.fileListAO.folderList || [];
+            const allItems = [...fileList, ...folderList];
+
+            if (allItems.length === 0) {
+                logTaskEvent(`[家庭中转] 回收站为空，无需清理`);
+                return { success: true, deletedCount: 0 };
+            }
+
+            // 构建彻底删除任务
+            const taskInfos = allItems.map(item => ({
+                fileId: String(item.id),
+                fileName: item.name,
+                isFolder: item.isFolder ? 1 : 0
+            }));
+
+            logTaskEvent(`[家庭中转] 彻底删除回收站 ${allItems.length} 个文件/文件夹`);
+
+            // 创建批量彻底删除任务（type=DELETE 且从回收站删除）
+            const deleteResult = await this.request('/api/open/batch/createBatchTask.action', {
+                method: 'POST',
+                form: {
+                    type: 'DELETE',
+                    taskInfos: JSON.stringify(taskInfos),
+                    targetFolderId: '',
+                    familyId: String(familyId)
+                }
+            });
+
+            if (deleteResult?.res_code !== undefined && deleteResult.res_code !== 0) {
+                throw new Error(deleteResult.res_message || '清空回收站失败');
+            }
+
+            logTaskEvent(`[家庭中转] ✅ 已清空家庭回收站，删除 ${allItems.length} 个文件`);
+            return { success: true, deletedCount: allItems.length };
+        } catch (error) {
+            logTaskEvent(`[家庭中转] 清空家庭回收站失败: ${error.message}`);
+            return { success: false, message: error.message };
+        }
+    }
+
     // 获取网盘直链
     async getDownloadLink(fileId, shareId = null) {
         const type = shareId? 4: 2

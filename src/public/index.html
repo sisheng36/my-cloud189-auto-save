@@ -233,12 +233,12 @@
                             <div class="form-group" id="familyFolderFormGroup">
                                 <label for="familyFolderId">家庭中转目录（可选）</label>
                                 <div style="display: flex; gap: 8px; align-items: center;">
-                                    <input type="text" id="familyFolderDisplay" readonly placeholder="自动创建临时目录" style="flex: 1;">
+                                    <input type="text" id="familyFolderDisplay" readonly placeholder="默认使用 cas_temp 目录" style="flex: 1;">
                                     <input type="hidden" id="familyFolderId">
                                     <button type="button" class="btn-secondary" id="selectFamilyFolderBtn" style="padding: 6px 12px; font-size: 12px;">选择</button>
                                     <button type="button" class="btn-default" id="clearFamilyFolderBtn" style="padding: 6px 12px; font-size: 12px; display: none;">清空</button>
                                 </div>
-                                <small class="form-text">💡 添加成功后自动检测家庭空间，可在账号管理中配置中转目录</small>
+                                <small class="form-text">💡 不配置则使用默认 cas_temp 目录，每次任务开始前自动清空</small>
                             </div>
                         </div>
                         <div class="form-actions">

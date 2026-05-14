@@ -475,14 +475,18 @@ AppDataSource.initialize().then(async () => {
             }
             // 清除任务缓存
             await taskCacheManager.clearCache(taskId);
-            // 同时清除 processingStartTime、lastFileUpdateTime、currentEpisodes，恢复任务状态为 pending
+            // 清除处理状态相关字段
             task.processingStartTime = null;
             task.lastFileUpdateTime = null;
             task.currentEpisodes = 0;
             task.status = 'pending';
+            // 清除追更进度相关字段
+            task.lastSavedFileName = null;
+            task.lastSavedDisplayText = null;
+            task.missingEpisodes = null;
             await taskRepo.save(task);
             logTaskEvent(`任务[${task.resourceName}]缓存已清除，状态恢复为 pending`);
-            res.json({ success: true, data: null, message: '缓存已清除，任务状态已恢复' });
+            res.json({ success: true, data: task, message: '缓存已清除，任务状态已恢复' });
         } catch (error) {
             res.json({ success: false, error: error.message });
         }

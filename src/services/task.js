@@ -1584,12 +1584,25 @@ class TaskService {
                             if (!this._casFamilyRootFolderId) {
                                 this._casFamilyRootFolderId = await familyCloud189.getFamilyRootFolderId(familyId);
                             }
-                            // 获取中转目录（账号级配置 + 同家庭组继承）
+                            // 获取中转目录（账号级配置 + 同家庭组继承 + 默认 cas_temp）
                             const familyFolderIdResult = await this._getFamilyFolderId(familyAccountForTransfer, familyCloud189, familyId, this._casFamilyRootFolderId);
                             if (familyFolderIdResult.folderId) {
                                 casFamilyFolderIdActual = familyFolderIdResult.folderId;
                                 casTempFolderCreated = familyFolderIdResult.isTemp;
                                 logTaskEvent(`[家庭中转] 中转目录: ${casFamilyFolderIdActual} (${familyFolderIdResult.source})`);
+
+                                // 保底动作：清空 cas_temp 目录中的数据（如果是默认目录）
+                                if (familyFolderIdResult.source === '默认目录 cas_temp') {
+                                    logTaskEvent(`[家庭中转] 开始清空默认目录 cas_temp...`);
+                                    await familyCloud189.clearFamilyFolder(familyId, casFamilyFolderIdActual);
+                                    // 清空家庭回收站
+                                    logTaskEvent(`[家庭中转] 清空家庭回收站...`);
+                                    try {
+                                        await familyCloud189.clearFamilyRecycleBin(familyId);
+                                    } catch (e) {
+                                        logTaskEvent(`[家庭中转] 清空回收站失败: ${e.message}`);
+                                    }
+                                }
                             } else {
                                 casFamilyFolderIdActual = this._casFamilyRootFolderId;
                                 logTaskEvent(`[家庭中转] 使用家庭根目录作为中转目录`);
@@ -3119,7 +3132,7 @@ class TaskService {
         })
     }
 
-    // 获取家庭中转目录（账号级配置 + 同家庭组继承）
+    // 获取家庭中转目录（账号级配置 + 同家庭组继承 + 默认 cas_temp）
     // 返回 { folderId, isTemp, source }
     async _getFamilyFolderId(account, familyCloud189, familyId, familyRootFolderId) {
         // 1. 该账号自己配置了目录 → 使用自己的
@@ -3140,11 +3153,40 @@ class TaskService {
             }
         }
 
-        // 3. 都没配置 → 自动创建临时目录
-        const tempFolderName = `CAS临时_${Date.now()}`;
-        const createResult = await familyCloud189.createFamilyFolder(familyId, tempFolderName, familyRootFolderId);
+        // 3. 都没配置 → 使用默认目录 cas_temp（固定名称，任务开始前会清空）
+        const defaultFolderName = 'cas_temp';
+
+        // 先查找是否已存在 cas_temp 目录
+        try {
+            const listResult = await familyCloud189.request('/api/open/family/file/listFiles.action', {
+                method: 'GET',
+                searchParams: {
+                    familyId,
+                    folderId: String(familyRootFolderId),
+                    pageNum: 1,
+                    pageSize: 100,
+                    mediaType: 0,
+                    orderBy: 3,
+                    descending: true
+                }
+            });
+
+            if (listResult?.fileListAO?.folderList) {
+                const existingFolder = listResult.fileListAO.folderList.find(f => f.name === defaultFolderName);
+                if (existingFolder) {
+                    logTaskEvent(`[家庭中转] 使用已存在的默认目录: ${defaultFolderName}`);
+                    return { folderId: existingFolder.id, isTemp: true, source: '默认目录 cas_temp' };
+                }
+            }
+        } catch (e) {
+            logTaskEvent(`[家庭中转] 查找默认目录失败: ${e.message}`);
+        }
+
+        // 不存在则创建
+        const createResult = await familyCloud189.createFamilyFolder(familyId, defaultFolderName, familyRootFolderId);
         if (createResult.success && createResult.folderId) {
-            return { folderId: createResult.folderId, isTemp: true, source: '自动创建临时目录' };
+            logTaskEvent(`[家庭中转] 创建默认目录: ${defaultFolderName}`);
+            return { folderId: createResult.folderId, isTemp: true, source: '默认目录 cas_temp' };
         }
 
         // 4. 创建失败 → 使用家庭根目录

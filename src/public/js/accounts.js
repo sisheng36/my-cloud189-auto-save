@@ -46,7 +46,7 @@ async function fetchAccounts(updateSelect = false) {
 
             // 账号行
             group.accounts.forEach(account => {
-                // 显示家庭中转目录状态：已配置显示ID，继承显示来源，自动创建显示提示
+                // 显示家庭中转目录状态：已配置显示ID，继承显示来源，默认显示 cas_temp
                 let familyFolderDisplay = '';
                 if (account.familyFolderId) {
                     familyFolderDisplay = `已配置 (${account.familyFolderId.slice(-6)})`;
@@ -55,7 +55,7 @@ async function fetchAccounts(updateSelect = false) {
                     const sourceAccount = group.accounts.find(a => a.familyFolderId && a.id !== account.id);
                     familyFolderDisplay = sourceAccount ? `继承自 ${sourceAccount.username}` : '继承';
                 } else {
-                    familyFolderDisplay = '自动创建';
+                    familyFolderDisplay = '默认 cas_temp';
                 }
                 tbody.innerHTML += `
                     <tr class="family-group-row" data-family="${fid}">
@@ -194,7 +194,7 @@ async function editAccount(id) {
         clearBtn.style.display = 'inline-block';
     } else {
         familyFolderIdInput.value = '';
-        familyFolderDisplayInput.value = '自动创建临时目录';
+        familyFolderDisplayInput.value = '默认 cas_temp 目录';
         clearBtn.style.display = 'none';
     }
 
@@ -210,7 +210,7 @@ async function editAccount(id) {
     // 设置清空按钮事件
     clearBtn.onclick = () => {
         familyFolderIdInput.value = '';
-        familyFolderDisplayInput.value = '自动创建临时目录';
+        familyFolderDisplayInput.value = '默认 cas_temp 目录';
         clearBtn.style.display = 'none';
     };
 
@@ -228,7 +228,7 @@ async function openFamilyFolderSelectorForEdit(accountId, currentFolderId, famil
     window.editFolderBreadcrumb = [{ id: '', name: '家庭根目录' }];
     window.editFolderCurrentPath = '';
     window.editSelectedFolderId = currentFolderId;
-    window.editSelectedFolderName = currentFolderId ? '已配置' : '自动创建';
+    window.editSelectedFolderName = currentFolderId ? '已配置' : '默认 cas_temp';
 
     // 创建目录选择器弹窗
     const modal = document.createElement('div');
@@ -244,7 +244,7 @@ async function openFamilyFolderSelectorForEdit(accountId, currentFolderId, famil
                 <div id="currentFolderDisplay" style="margin-bottom: 10px; padding: 10px; background: var(--bg-color); border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                     <span>
                         <strong>当前：</strong>
-                        <span id="editCurrentFolderText">${currentFolderId ? '已配置 (' + currentFolderId.slice(-6) + ')' : '自动创建临时目录'}</span>
+                        <span id="editCurrentFolderText">${currentFolderId ? '已配置 (' + currentFolderId.slice(-6) + ')' : '默认 cas_temp 目录'}</span>
                     </span>
                     <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="clearEditFolderSelection()">清空</button>
                 </div>
@@ -305,7 +305,7 @@ async function loadEditFamilyFolderTree(accountId, folderId, selectedFolderId) {
         if (folderId === '') {
             html += `
                 <div class="edit-folder-item" data-folder-id="" style="padding: 10px; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; ${!window.editSelectedFolderId ? 'background: var(--primary-color); color: white;' : 'hover:bg'}" onmouseover="this.style.background='${!window.editSelectedFolderId ? 'var(--primary-color)' : 'var(--bg-color)'}'" onmouseout="this.style.background='${!window.editSelectedFolderId ? 'var(--primary-color)' : ''}'" onclick="selectEditFolder('', '家庭根目录')">
-                    <span>📁 家庭根目录（自动创建临时目录）</span>
+                    <span>📁 家庭根目录（默认 cas_temp 目录）</span>
                 </div>
             `;
         }
@@ -364,7 +364,7 @@ function selectEditFolder(folderId, folderName) {
         if (folderId) {
             currentFolderText.textContent = `已选择: ${folderName} (${folderId.slice(-6)})`;
         } else {
-            currentFolderText.textContent = '自动创建临时目录';
+            currentFolderText.textContent = '默认 cas_temp 目录';
         }
     }
 
@@ -376,12 +376,12 @@ function selectEditFolder(folderId, folderName) {
 // 编辑模式下清空选择
 function clearEditFolderSelection() {
     window.editSelectedFolderId = '';
-    window.editSelectedFolderName = '自动创建';
+    window.editSelectedFolderName = '默认 cas_temp';
 
     // 更新显示
     const currentFolderText = document.getElementById('editCurrentFolderText');
     if (currentFolderText) {
-        currentFolderText.textContent = '自动创建临时目录';
+        currentFolderText.textContent = '默认 cas_temp 目录';
     }
 
     // 清除目录树选中状态
@@ -397,7 +397,7 @@ function clearEditFolderSelection() {
         rootItem.style.color = 'white';
     }
 
-    message.success('已恢复为自动创建临时目录');
+    message.success('已恢复为默认 cas_temp 目录');
 }
 
 // 关闭编辑模式弹窗
@@ -424,7 +424,7 @@ function confirmEditFamilyFolder() {
         familyFolderDisplayInput.value = `已选择 (${folderId.slice(-6)})`;
         clearBtn.style.display = 'inline-block';
     } else {
-        familyFolderDisplayInput.value = '自动创建临时目录';
+        familyFolderDisplayInput.value = '默认 cas_temp 目录';
         clearBtn.style.display = 'none';
     }
 
@@ -649,12 +649,12 @@ async function updateFamilyFolder(accountId, currentFolderId, familyId) {
             </div>
             <div style="padding: 20px;">
                 <p style="color: #888; font-size: 13px; margin-bottom: 15px;">
-                    💡 选择家庭空间中的目录作为 CAS 秒传中转目录，或使用自动创建的临时目录
+                    💡 选择家庭空间中的目录作为 CAS 秒传中转目录，或使用默认 cas_temp 目录
                 </p>
                 <div id="currentFolderDisplay" style="margin-bottom: 10px; padding: 10px; background: var(--bg-color); border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                     <span>
                         <strong>当前：</strong>
-                        <span id="currentFolderText">${currentFolderId ? '已配置 (' + currentFolderId.slice(-6) + ')' : '自动创建临时目录'}</span>
+                        <span id="currentFolderText">${currentFolderId ? '已配置 (' + currentFolderId.slice(-6) + ')' : '默认 cas_temp 目录'}</span>
                     </span>
                     <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="clearFamilyFolderSelection(${accountId})">清空</button>
                 </div>
@@ -671,21 +671,21 @@ async function updateFamilyFolder(accountId, currentFolderId, familyId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
 
-    // 初始化选中值（默认清空/自动创建）
+    // 初始化选中值（默认使用 cas_temp 目录）
     window.selectedFamilyFolderId = '';
-    window.selectedFamilyFolderName = '自动创建';
+    window.selectedFamilyFolderName = '默认 cas_temp';
     await loadFamilyFolderTree(accountId, '', currentFolderId);
 }
 
-// 清空选择（恢复默认自动创建）
+// 清空选择（恢复默认 cas_temp 目录）
 function clearFamilyFolderSelection(accountId) {
     window.selectedFamilyFolderId = '';
-    window.selectedFamilyFolderName = '自动创建';
+    window.selectedFamilyFolderName = '默认 cas_temp';
 
     // 更新显示
     const currentFolderText = document.getElementById('currentFolderText');
     if (currentFolderText) {
-        currentFolderText.textContent = '自动创建临时目录';
+        currentFolderText.textContent = '默认 cas_temp 目录';
     }
 
     // 清除目录树选中状态
@@ -701,7 +701,7 @@ function clearFamilyFolderSelection(accountId) {
         rootItem.style.color = 'white';
     }
 
-    message.success('已恢复为自动创建临时目录');
+    message.success('已恢复为默认 cas_temp 目录');
 }
 
 // 加载家庭目录树
@@ -720,14 +720,14 @@ async function loadFamilyFolderTree(accountId, folderId, selectedFolderId) {
 
         const folders = data.data.folders || [];
         if (folders.length === 0 && folderId === '') {
-            container.innerHTML = `<div style="text-align: center; padding: 20px; color: #888;">家庭空间无目录，将自动创建</div>`;
+            container.innerHTML = `<div style="text-align: center; padding: 20px; color: #888;">家庭空间无目录，将使用默认 cas_temp 目录</div>`;
             return;
         }
 
         // 构建目录树
         let html = folderId === '' ? `
             <div class="folder-item" data-folder-id="" style="padding: 8px; cursor: pointer; border-radius: 4px; ${selectedFolderId === '' ? 'background: var(--primary-color); color: white;' : ''}" onclick="selectFamilyFolder('', '家庭根目录')">
-                📁 家庭根目录（自动创建临时目录）
+                📁 家庭根目录（默认 cas_temp 目录）
             </div>
         ` : '';
 
@@ -765,7 +765,7 @@ function selectFamilyFolder(folderId, folderName) {
         if (folderId) {
             currentFolderText.textContent = `已选择: ${folderName} (${folderId.slice(-6)})`;
         } else {
-            currentFolderText.textContent = '自动创建临时目录';
+            currentFolderText.textContent = '默认 cas_temp 目录';
         }
     }
 
@@ -829,12 +829,12 @@ async function showFamilyFolderSelectorAfterAddAccount(accountId, familyId) {
                     ✅ 检测到家庭空间（ID: ${familyId.slice(-6)}）
                 </p>
                 <p style="color: #888; font-size: 13px; margin-bottom: 15px;">
-                    💡 选择家庭空间中的目录作为 CAS 秒传中转目录，或使用自动创建的临时目录
+                    💡 选择家庭空间中的目录作为 CAS 秒传中转目录，或使用默认 cas_temp 目录
                 </p>
                 <div id="currentFolderDisplay" style="margin-bottom: 10px; padding: 10px; background: var(--bg-color); border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                     <span>
                         <strong>当前：</strong>
-                        <span id="currentFolderText">自动创建临时目录</span>
+                        <span id="currentFolderText">默认 cas_temp 目录</span>
                     </span>
                     <button class="btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="clearFamilyFolderSelection(${accountId})">清空</button>
                 </div>
@@ -851,8 +851,8 @@ async function showFamilyFolderSelectorAfterAddAccount(accountId, familyId) {
     document.body.appendChild(modal);
     modal.style.display = 'block';
 
-    // 加载家庭目录树，默认选中根目录（自动创建）
+    // 加载家庭目录树，默认选中根目录（使用 cas_temp 目录）
     window.selectedFamilyFolderId = '';
-    window.selectedFamilyFolderName = '自动创建';
+    window.selectedFamilyFolderName = '默认 cas_temp';
     await loadFamilyFolderTree(accountId, '', '');
 }
