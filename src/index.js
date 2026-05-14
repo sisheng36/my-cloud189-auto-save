@@ -1159,8 +1159,7 @@ AppDataSource.initialize().then(async () => {
             if (folderPath && !folderPath.startsWith('/')) {
                 folderPath = '/' + folderPath;
             }
-            const videoType = task.videoType || 'tv';
-            const message = `✅《${task.resourceName}》重命名完成\n已处理 ${successFiles.length} 个文件\n📁 ${folderPath}\n🎬 ${videoType}`;
+            const message = `✅《${task.resourceName}》重命名完成\n已处理 ${successFiles.length} 个文件\n📁 ${folderPath}`;
             messageUtil.sendMessage(message);
             logTaskEvent(`[批量重命名] 已发送重命名完成通知，路径: ${folderPath}`);
         }

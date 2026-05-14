@@ -7,7 +7,15 @@
       "Bash(npx acorn:*)",
       "Bash(node -e ':*)",
       "Bash(npm install:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(claude plugins *)",
+      "Bash(powershell -Command \"Get-Content 'C:\\\\Users\\\\tingyu\\\\.claude\\\\settings.json' | ConvertFrom-Json | ConvertTo-Json -Depth 10\")",
+      "Bash(powershell *)",
+      "Bash(node *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:smartstrm.github.io)"
     ]
   }
 }

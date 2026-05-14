@@ -160,14 +160,13 @@ class TaskEventHandler {
             const result = await taskService.autoRename(cloud189, task);
             if (result && result.newFiles && result.newFiles.length > 0) {
                 taskCompleteEventDto.fileList = result.newFiles;
-                // 获取保存路径和视频类型用于 webhook 占位符
+                // 获取保存路径用于 webhook 占位符
                 // 确保路径以 / 开头（SmartStrm webhook 要求）
                 let folderPath = task.realFolderName || task.realFolderId || '';
                 if (folderPath && !folderPath.startsWith('/')) {
                     folderPath = '/' + folderPath;
                 }
-                const videoType = task.videoType || 'tv'; // 默认剧集
-                let message = `✅《${task.resourceName}》重命名完成\n已处理 ${result.newFiles.length} 个文件\n📁 ${folderPath}\n🎬 ${videoType}`;
+                let message = `✅《${task.resourceName}》重命名完成\n已处理 ${result.newFiles.length} 个文件\n📁 ${folderPath}`;
                 if (result.renameMessages && result.renameMessages.length > 0) {
                     const details = result.renameMessages.slice(0, 10);
                     message += `\n${details.join('\n')}`;
@@ -188,9 +187,8 @@ class TaskEventHandler {
                 if (folderPath && !folderPath.startsWith('/')) {
                     folderPath = '/' + folderPath;
                 }
-                const videoType = task.videoType || 'tv';
                 const message = `⚠️《${task.resourceName}》转存成功但重命名失败\n` +
-                    `📁 ${folderPath}\n🎬 ${videoType}\n` +
+                    `📁 ${folderPath}\n` +
                     `请检查 AI 服务状态`;
                 this.messageUtil.sendMessage(message);
                 logTaskEvent(`AI 重命名失败，已发送带路径通知，路径: ${folderPath}`);
@@ -203,9 +201,8 @@ class TaskEventHandler {
             if (folderPath && !folderPath.startsWith('/')) {
                 folderPath = '/' + folderPath;
             }
-            const videoType = task.videoType || 'tv';
             const message = `❌《${task.resourceName}》重命名异常\n` +
-                `📁 ${folderPath}\n🎬 ${videoType}\n` +
+                `📁 ${folderPath}\n` +
                 `错误: ${error.message}`;
             this.messageUtil.sendMessage(message);
         }
