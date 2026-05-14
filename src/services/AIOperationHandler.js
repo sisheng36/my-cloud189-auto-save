@@ -59,23 +59,25 @@ class AIOperationHandler {
     }
 
     async handleListTasks(params) {
-        const { status = 'all', search, limit = 20 } = params;
-        
+        const { status = 'all', search, limit = 50 } = params;
+
         const tasks = await this.taskService.getTasks();
-        
+
         let filteredTasks = tasks;
-        
+
         if (status && status !== 'all') {
             filteredTasks = filteredTasks.filter(t => t.status === status);
         }
-        
+
         if (search) {
-            filteredTasks = filteredTasks.filter(t => 
+            filteredTasks = filteredTasks.filter(t =>
                 t.resourceName && t.resourceName.includes(search)
             );
         }
-        
-        filteredTasks = filteredTasks.slice(0, limit);
+
+        // 记录查询日志
+        const { logTaskEvent } = require('../utils/logUtils');
+        logTaskEvent(`[AI助手] 任务列表查询: 状态=${status}, 搜索=${search || '无'}, 总数=${tasks.length}, 过滤后=${filteredTasks.length}`);
 
         return {
             tasks: filteredTasks.map(task => ({
@@ -88,6 +90,7 @@ class AIOperationHandler {
                 targetFolderId: task.targetFolderId
             })),
             total: filteredTasks.length,
+            allTotal: tasks.length,  // 添加总任务数
             filters: { status, search }
         };
     }

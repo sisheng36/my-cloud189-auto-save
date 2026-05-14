@@ -1374,15 +1374,19 @@ class TelegramBotService {
     async _handleAIChat(chatId, message) {
         if (!message || message.trim() === '') return;
 
+        const { logTaskEvent } = require('../utils/logUtils');
+        logTaskEvent(`[AI助手] 收到消息: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
+
         try {
             // 发送"正在输入"状态
             await this.bot.sendChatAction(chatId, 'typing');
 
             // 检测分享链接
             const shareLink = this.aiIntentService.detectShareLink(message);
-            
+
             if (shareLink) {
                 // 分享链接智能创建
+                logTaskEvent(`[AI助手] 检测到分享链接，触发智能创建`);
                 await this._handleSmartCreate(chatId, shareLink);
                 return;
             }
@@ -1390,6 +1394,9 @@ class TelegramBotService {
             // 使用AI Function Calling识别意图
             let functionCallResult = null;
             let textResponse = '';
+
+            logTaskEvent(`[AI助手] 调用 AI Function Calling 识别意图...`);
+            const startTime = Date.now();
 
             await AIService.streamChatWithFunctions(
                 message,
@@ -1404,18 +1411,24 @@ class TelegramBotService {
                 }
             );
 
+            const elapsed = Date.now() - startTime;
+            logTaskEvent(`[AI助手] AI 响应耗时: ${elapsed}ms, Function Call: ${functionCallResult ? functionCallResult.name : '无'}, 文本长度: ${textResponse.length}`);
+
             // 如果识别到Function Call
             if (functionCallResult) {
+                logTaskEvent(`[AI助手] 执行 Function: ${functionCallResult.name}, 参数: ${JSON.stringify(functionCallResult.arguments)}`);
                 await this._executeAIFunction(chatId, functionCallResult);
                 return;
             }
 
             // 否则返回AI文本回复
             if (textResponse) {
+                logTaskEvent(`[AI助手] 返回文本回复: "${textResponse.substring(0, 100)}${textResponse.length > 100 ? '...' : ''}"`);
                 await this.bot.sendMessage(chatId, textResponse);
             }
 
         } catch (error) {
+            logTaskEvent(`[AI助手] 处理失败: ${error.message}`);
             console.error('AI聊天处理失败:', error);
             await this.bot.sendMessage(chatId, `❌ AI处理失败: ${error.message}`);
         }
@@ -1466,6 +1479,7 @@ class TelegramBotService {
     // 执行AI Function
     async _executeAIFunction(chatId, functionCall) {
         const { name, arguments: args } = functionCall;
+        const { logTaskEvent } = require('../utils/logUtils');
 
         try {
             await this.bot.sendChatAction(chatId, 'typing');
@@ -1473,7 +1487,8 @@ class TelegramBotService {
             // 检查是否需要确认
             if (this.aiIntentService.requiresConfirmation(name)) {
                 const securityLevel = this.aiIntentService.getSecurityLevel(name);
-                
+                logTaskEvent(`[AI助手] 操作 ${name} 需要确认，等待用户操作`);
+
                 await this.bot.sendMessage(chatId,
                     `⚠️ 操作确认\n\n` +
                     `即将执行: ${name}\n` +
@@ -1494,12 +1509,17 @@ class TelegramBotService {
             }
 
             // 直接执行
+            logTaskEvent(`[AI助手] 开始执行操作: ${name}`);
+            const startTime = Date.now();
             const result = await this.aiOperationHandler.executeOperation(name, args);
-            
+            const elapsed = Date.now() - startTime;
+            logTaskEvent(`[AI助手] 操作 ${name} 执行完成, 耗时: ${elapsed}ms, 成功: ${result.success}`);
+
             // 格式化并发送结果
             await this._sendOperationResult(chatId, result);
 
         } catch (error) {
+            logTaskEvent(`[AI助手] 执行 ${name} 失败: ${error.message}`);
             console.error('执行Function失败:', error);
             await this.bot.sendMessage(chatId, `❌ 执行失败: ${error.message}`);
         }
@@ -1635,32 +1655,57 @@ class TelegramBotService {
     // 发送任务列表
     async _sendTaskList(chatId, data) {
         const tasks = data.tasks || [];
-        
+
         if (tasks.length === 0) {
             await this.bot.sendMessage(chatId, '没有找到任务');
             return;
         }
 
-        let message = `📋 任务列表 (共${data.total}个)\n\n`;
-        
-        tasks.slice(0, 10).forEach(task => {
-            const statusEmoji = {
-                'pending': '⏳',
-                'active': '🔄',
-                'completed': '✅',
-                'failed': '❌',
-                'paused': '⏸️'
-            }[task.status] || '❓';
-            
-            message += `${statusEmoji} #${task.id} ${task.resourceName || '未命名'}\n`;
-            message += `   状态: ${task.status}\n\n`;
+        const statusEmoji = {
+            'pending': '⏳',
+            'active': '🔄',
+            'completed': '✅',
+            'failed': '❌',
+            'paused': '⏸️',
+            'processing': '⚙️'
+        };
+
+        const statusText = {
+            'pending': '等待中',
+            'active': '运行中',
+            'completed': '已完成',
+            'failed': '失败',
+            'paused': '已暂停',
+            'processing': '处理中'
+        };
+
+        let message = `📋 任务列表 (共${data.allTotal || data.total}个)\n\n`;
+
+        tasks.forEach(task => {
+            const emoji = statusEmoji[task.status] || '❓';
+            const status = statusText[task.status] || task.status;
+            message += `${emoji} #${task.id} ${task.resourceName || '未命名'}\n`;
+            message += `   状态: ${status}\n\n`;
         });
 
-        if (tasks.length > 10) {
-            message += `... 还有 ${tasks.length - 10} 个任务`;
+        // Telegram 单条消息最大 4096 字符，超出则分页发送
+        if (message.length > 4000) {
+            const lines = message.split('\n\n');
+            let chunk = '';
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (chunk.length + line.length + 2 > 3800 && chunk.length > 0) {
+                    await this.bot.sendMessage(chatId, chunk);
+                    chunk = '';
+                }
+                chunk += (chunk ? '\n\n' : '') + line;
+            }
+            if (chunk) {
+                await this.bot.sendMessage(chatId, chunk);
+            }
+        } else {
+            await this.bot.sendMessage(chatId, message);
         }
-
-        await this.bot.sendMessage(chatId, message);
     }
 
     // 发送任务详情
