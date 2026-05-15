@@ -175,9 +175,9 @@ class CustomPushService extends MessageService {
             return;
         }
 
-        // 只处理包含 📁 路径的消息（即重命名完成的消息）
+        // 处理包含 📁 路径的消息（重命名完成）或文件删除消息
         // 避免 AI 重命名过程中、Emby 通知等其他消息触发 webhook
-        if (typeof message !== 'string' || !message.includes('📁')) {
+        if (typeof message !== 'string' || (!message.includes('📁') && !message.includes('🗑️'))) {
             return;
         }
 

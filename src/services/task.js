@@ -971,6 +971,10 @@ class TaskService {
             new StrmService().deleteDir(path.join(task.account.localStrmPrefix, folderName))
             // 刷新Alist缓存
             await this.refreshAlistCache(task, true)
+            // 发送删除通知（包含文件路径，用于触发下游webhook）
+            const deleteMessage = `🗑️ 文件删除通知\n任务名称: ${task.resourceName}\n📁 ${task.realFolderName}`;
+            logTaskEvent(`[文件删除] ${deleteMessage.replace(/\n/g, ' ')}`);
+            this.messageUtil.sendMessage(deleteMessage);
         }
         if (task.enableSystemProxy) {
             // 删除strm

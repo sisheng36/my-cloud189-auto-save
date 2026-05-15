@@ -124,6 +124,10 @@
     order: -1;
 }
 
+.files-list-modal {
+    z-index: 1005; /* 低于 manualTmdbModal(1100)，让TMDB绑定弹窗能显示在上面 */
+}
+
 .files-list-modal .modal-content {
     max-width: 1000px;
 }
