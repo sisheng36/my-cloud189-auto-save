@@ -1258,7 +1258,9 @@ function openManualTmdbModal() {
         document.getElementById('tmdbSearchQuery').value = yearMatch ? yearMatch[1] : taskName;
     }
     document.getElementById('tmdbSearchResults').innerHTML = '';
-    document.getElementById('manualTmdbModal').style.display = 'block';
+    const modal = document.getElementById('manualTmdbModal');
+    modal.style.zIndex = '2000'; // 确保置顶于文件列表弹窗之上
+    modal.style.display = 'block';
 }
 
 function closeManualTmdbModal() {
