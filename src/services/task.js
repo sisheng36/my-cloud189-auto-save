@@ -1301,13 +1301,9 @@ class TaskService {
                                 shareFolderId = freshShareInfo.fileId;
                             }
                         } else {
-                            // getShareInfo 返回 null 表示请求失败，链接可能失效
-                            logTaskEvent(`⚠️ 无法获取分享信息，链接可能已失效`);
-                            task.lastError = '无法获取分享信息，链接可能已失效';
-                            task.status = 'failed';
-                            await this.taskRepo.save(task);
-                            this.messageUtil.sendMessage(`❌ 任务 "${task.resourceName}" 分享链接可能已失效\n请检查链接是否正常`);
-                            return '';
+                            // getShareInfo 返回 null 表示请求失败（网络抖动等暂时性问题）
+                            // 走 _handleTaskFailure 重试机制，避免一次失败就直接标记为永久失败
+                            throw new Error('无法获取分享信息，链接可能已失效');
                         }
                     }
                 } catch (e) {
@@ -1319,12 +1315,8 @@ class TaskService {
              const shareDir = await cloud189.listShareDir(shareId, shareFolderId, shareMode, task.accessCode, isFolder);
              // 先检查 shareDir 是否存在
              if (!shareDir) {
-                logTaskEvent("⚠️ 无法获取分享目录，链接可能已失效");
-                task.lastError = '无法获取分享目录，链接可能已失效';
-                task.status = 'failed';
-                await this.taskRepo.save(task);
-                this.messageUtil.sendMessage(`❌ 任务 "${task.resourceName}" 无法获取分享目录\n请检查分享链接是否正常`);
-                return '';
+                // 走 _handleTaskFailure 重试机制，避免网络抖动直接判死
+                throw new Error('无法获取分享目录，链接可能已失效');
              }
              if(shareDir.res_code == "ShareAuditWaiting") {
                 logTaskEvent("分享链接审核中, 等待下次执行")
