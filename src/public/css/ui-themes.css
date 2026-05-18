@@ -918,16 +918,16 @@ tbody th:last-child {
     color: #f8fafc;
     padding: 20px;
     padding-top: 60px;
-    padding-bottom: 160px;
+    padding-bottom: 180px;
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.5;
     opacity: 0;
     transition: opacity 0.3s ease;
     backdrop-filter: blur(4px);
     z-index: 10;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 6;
+    -webkit-line-clamp: 5;
     -webkit-box-orient: vertical;
     text-overflow: ellipsis;
 }
