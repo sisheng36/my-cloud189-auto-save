@@ -400,7 +400,7 @@ async function fetchTasks() {
                         <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
                         <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
                     </td>
-                    <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a>${task.manualTmdbBound ? `<span style="background:#10b981;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:4px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' S' + task.manualSeason : ''}</span>` : ''}</td>
+                    <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a>${task.tmdbId ? `<span style="background:${task.manualTmdbBound ? '#10b981' : '#6b7280'};color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:4px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' S' + task.manualSeason : ''}${task.manualTmdbBound ? '' : ' (自动)'}</span>` : ''}</td>
                     <td data-label="账号">${task.account.username}</td>
                     <!--<td data-label="首次保存目录"><a href="https://cloud.189.cn/web/main/file/folder/${task.targetFolderId}" target="_blank">${task.targetFolderId}</a></td>-->
                      <td data-label="更新目录"><a href="javascript:void(0)" onclick="showFileListModal('${task.id}')" class='ellipsis'>${task.realFolderName || task.realFolderId}</a></td>
@@ -1109,9 +1109,9 @@ async function showAIRenameOptions() {
         return;
     }
 
-    const tmdbInfoHtml = chooseTask.manualTmdbBound && chooseTask.tmdbId 
+    const tmdbInfoHtml = chooseTask.tmdbId 
         ? `<div style="margin-bottom: 15px; padding: 10px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 4px; color: #1890ff;">
-             <span><i class="fas fa-info-circle"></i> 当前任务已被手动指定为 <b>TMDB ID: ${chooseTask.tmdbId} ${chooseTask.tmdbTitle ? '(' + chooseTask.tmdbTitle + ')' : ''}</b>${chooseTask.manualSeason != null ? ' &nbsp;<b>强制第 ' + chooseTask.manualSeason + ' 季</b>' : ''}</span>
+             <span><i class="fas fa-info-circle"></i> 当前任务${chooseTask.manualTmdbBound ? '已被手动指定' : '已自动识别'}为 <b>TMDB ID: ${chooseTask.tmdbId} ${chooseTask.tmdbTitle ? '(' + chooseTask.tmdbTitle + ')' : ''}</b>${chooseTask.manualSeason != null ? ' &nbsp;<b>强制第 ' + chooseTask.manualSeason + ' 季</b>' : ''}</span>
            </div>`
         : '';
 

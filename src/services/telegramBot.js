@@ -1131,7 +1131,7 @@ class TelegramBotService {
         }
         const taskText = tasks.map((t, i) =>
             `${i + 1}. 📺 ${t.resourceName}\n` +
-            `   ${t.manualTmdbBound ? `✅ 已绑定: ${t.tmdbTitle || t.tmdbId}${t.manualSeason != null ? ' 第' + t.manualSeason + '季' : ''}` : '❌ 未绑定TMDB'}\n` +
+            `   ${t.tmdbId ? `${t.manualTmdbBound ? '✅' : '🔄'} 已绑定: ${t.tmdbTitle || t.tmdbId}${t.manualSeason != null ? ' 第' + t.manualSeason + '季' : ''}` : '❌ 未绑定TMDB'}\n` +
             `   /bind_${t.id}`
         ).join('\n\n');
         await this.bot.sendMessage(chatId, `🎥 任务列表 (TMDB绑定状态)\n\n${taskText}\n\n输入 /bind_[ID] 为对应任务绑定TMDB`, { parse_mode: 'HTML' });

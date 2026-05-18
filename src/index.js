@@ -720,7 +720,7 @@ AppDataSource.initialize().then(async () => {
             if (msgType === 'event' && event === 'CLICK') {
                 if (eventKey === 'RENAME_TASKS') {
                     const tasks = await taskRepo.find({ order: { updatedAt: 'DESC' }, take: 10 });
-                    const txt = tasks.map((t, i) => `${i+1}. ${t.resourceName} ${t.manualTmdbBound ? '✅已绑定' : '❌未绑定'}`).join('\n');
+                    const txt = tasks.map((t, i) => `${i+1}. ${t.resourceName} ${t.tmdbId ? '✅已绑定' : '❌未绑定'}`).join('\n');
                     WeChatWorkManager.setSession(fromUser, { state: 'select_task', tasks });
                     await send(`📺 任务列表：\n\n${txt}\n\n回复数字选择任务绑定TMDB，回复"取消"退出`);
                 } else if (eventKey === 'EXECUTE_ALL') {

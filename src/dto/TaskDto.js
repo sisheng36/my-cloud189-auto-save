@@ -23,6 +23,9 @@ class CreateTaskDto {
         this.enableSystemProxy = data?.enableSystemProxy; // 启用系统代理
         this.isFolder = data?.isFolder; // 是否是文件夹
         this.videoType = data?.videoType; // 视频类型 (movie/tv)
+        this.tmdbId = data?.tmdbId; // TMDB ID
+        this.tmdbTitle = data?.tmdbTitle; // TMDB 标题
+        this.tmdbContent = data?.tmdbContent; // TMDB 完整详情（JSON序列化）
     }
 
     validate() {
