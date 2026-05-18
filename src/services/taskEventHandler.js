@@ -262,7 +262,10 @@ class TaskEventHandler {
     async _handleEmbyNotification(taskCompleteEventDto) {
         try {
             const {task} = taskCompleteEventDto;
-            if (ConfigService.getConfigValue('emby.enable')) {
+            const embyEnabled = ConfigService.getConfigValue('emby.enable');
+            const embyUrl = ConfigService.getConfigValue('emby.serverUrl');
+            // 同时检查启用状态和服务器地址是否已配置
+            if (embyEnabled && embyUrl) {
                 const embyService = new EmbyService();
                 await embyService.notify(task);
             }

@@ -6,7 +6,7 @@
         <img src="https://img.shields.io/badge/Docker-Images-blue?style=flat-square&logo=docker" alt="Docker">
     </a>
     <a href="https://github.com/ymting/my-cloud189-auto-save/releases">
-        <img src="https://img.shields.io/badge/Version-2.2.64-green?style=flat-square" alt="Version">
+        <img src="https://img.shields.io/badge/Version-2.2.65-green?style=flat-square" alt="Version">
     </a>
 </div>
 
@@ -231,6 +231,12 @@ docker run -d \
 ---
 
 ## 📋 版本更新日志
+
+### v2.2.65 (2026-05-18)
+
+- **修复 Issue #16**：重命名后消息推送 Bug - 未配置 Emby 服务器地址时，不再错误调用 Emby 接口导致通知流程崩溃
+- **修复 Issue #17**：电影识别为电视剧 Bug - 新增启发式判断逻辑，根据保存路径、文件数量、季集标识智能推断视频类型
+- **修复 Issue #18**：订阅链接替换失败 Bug - 改进链接验证错误处理，提供更友好的错误提示，帮助用户理解问题原因
 
 ### v2.2.64 (2026-05-11)
 

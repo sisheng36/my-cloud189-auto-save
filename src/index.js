@@ -462,7 +462,7 @@ AppDataSource.initialize().then(async () => {
             folderCache.clearPrefix(`share_folders_${taskId}_`);
             res.json({ success: true, data: updatedTask });
         } catch (error) {
-            res.json({ success: false, error: error.message });
+            res.status(400).json({ success: false, error: error.message });
         }
     });
 

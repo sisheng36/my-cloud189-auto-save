@@ -192,10 +192,14 @@ function initEditTaskForm() {
                 await fetchTasks();
             } else {
                 const error = await response.json();
-                message.warning(error.message || '修改任务失败');
+                // 显示更详细的错误信息，帮助用户理解问题
+                const errorMsg = error.error || error.message || '修改任务失败';
+                message.error(errorMsg);
+                console.error('任务更新失败:', errorMsg);
             }
         } catch (error) {
-            message.warning('修改任务失败：' + error.message);
+            message.error('修改任务失败：' + error.message);
+            console.error('任务更新异常:', error);
         }
     });
 }

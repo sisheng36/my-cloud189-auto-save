@@ -318,6 +318,48 @@ class TaskService {
             let tmdbName = null;
             let tmdbParsed = false;
             let tmdbType = type;
+
+            // ====== 启发式判断视频类型（在 TMDB 搜索前分析资源特征） ======
+            let inferredType = null; // 启发式推断的类型，优先级低于用户指定
+            if (!taskDto?.videoType) {
+                // 1. 根据保存路径中的关键字判断
+                const savePath = taskDto?.realFolderName || '';
+                const moviePathKeywords = ['/电影/', '/Movies/', '/Movie/', '/movie/', '/影片/'];
+                const tvPathKeywords = ['/电视剧/', '/TV/', '/Tv/', '/tv/', '/剧集/', '/动漫/', '/番剧/'];
+                if (moviePathKeywords.some(k => savePath.includes(k))) {
+                    inferredType = 'movie';
+                    logTaskEvent(`[AI重命名] 启发式判断：保存路径含电影关键字 -> 推断为电影`);
+                } else if (tvPathKeywords.some(k => savePath.includes(k))) {
+                    inferredType = 'tv';
+                    logTaskEvent(`[AI重命名] 启发式判断：保存路径含电视剧关键字 -> 推断为电视剧`);
+                }
+
+                // 2. 根据文件数量判断（单文件更可能是电影）
+                if (!inferredType && files && files.length > 0) {
+                    const mediaFiles = files.filter(f => !f.isFolder);
+                    if (mediaFiles.length === 1) {
+                        inferredType = 'movie';
+                        logTaskEvent(`[AI重命名] 启发式判断：仅1个媒体文件 -> 推断为电影`);
+                    }
+                }
+
+                // 3. 根据文件名中的季集信息判断（有季集标识则是电视剧）
+                if (!inferredType && files && files.length > 0) {
+                    const hasEpisodePattern = files.some(f =>
+                        /S\d+[-_ ]*E\d+|第\s*\d+\s*[集话]|EP?\d+/i.test(f.name || '')
+                    );
+                    if (hasEpisodePattern) {
+                        inferredType = 'tv';
+                        logTaskEvent(`[AI重命名] 启发式判断：文件名含季集标识 -> 推断为电视剧`);
+                    }
+                }
+
+                // 4. 多文件且无季集信息，可能是电影合集，仍优先搜电视剧（安全回退）
+                if (inferredType) {
+                    logTaskEvent(`[AI重命名] 启发式判断最终结果: ${inferredType === 'movie' ? '电影' : '电视剧'}`);
+                }
+            }
+
             try {
                 // 如果用户已经手动指定了 TMDB，则直接获取该详情
                 if (taskDto && taskDto.manualTmdbBound && taskDto.tmdbId && taskDto.videoType) {
@@ -399,21 +441,30 @@ class TaskService {
                                 tmdbParsed = true;
                             }
                         } else {
-                            // 未指定类型，按原逻辑先搜剧集再搜电影
-                            const tvResult = await tmdbService.searchTV(baseName, year ? year.toString() : '');
-                            if (tvResult && tvResult.title) {
-                                tmdbName = tvResult.title;
-                                tmdbType = 'tv';
-                                if (tvResult.releaseDate) year = parseInt(tvResult.releaseDate.substring(0, 4)) || year;
+                            // 未指定类型，使用启发式判断结果决定搜索优先级
+                            const searchType = inferredType || 'tv'; // 默认回退电视剧（CAS资源多为剧集）
+                            const primaryResult = searchType === 'movie'
+                                ? await tmdbService.searchMovie(baseName, year ? year.toString() : '')
+                                : await tmdbService.searchTV(baseName, year ? year.toString() : '');
+
+                            if (primaryResult && primaryResult.title) {
+                                tmdbName = primaryResult.title;
+                                tmdbType = searchType;
+                                if (primaryResult.releaseDate) year = parseInt(primaryResult.releaseDate.substring(0, 4)) || year;
                                 tmdbParsed = true;
+                                logTaskEvent(`[AI重命名] TMDB ${searchType === 'movie' ? '电影' : '电视剧'}搜索匹配成功: ${tmdbName}`);
                             } else {
-                                // 如果查不到剧集，则查电影
-                                const movieResult = await tmdbService.searchMovie(baseName, year ? year.toString() : '');
-                                if (movieResult && movieResult.title) {
-                                    tmdbName = movieResult.title;
-                                    tmdbType = 'movie';
-                                    if (movieResult.releaseDate) year = parseInt(movieResult.releaseDate.substring(0, 4)) || year;
+                                // 首选类型搜不到，尝试另一种类型
+                                const fallbackType = searchType === 'movie' ? 'tv' : 'movie';
+                                const fallbackResult = fallbackType === 'movie'
+                                    ? await tmdbService.searchMovie(baseName, year ? year.toString() : '')
+                                    : await tmdbService.searchTV(baseName, year ? year.toString() : '');
+                                if (fallbackResult && fallbackResult.title) {
+                                    tmdbName = fallbackResult.title;
+                                    tmdbType = fallbackType;
+                                    if (fallbackResult.releaseDate) year = parseInt(fallbackResult.releaseDate.substring(0, 4)) || year;
                                     tmdbParsed = true;
+                                    logTaskEvent(`[AI重命名] 首选类型未匹配，回退${fallbackType === 'movie' ? '电影' : '电视剧'}搜索成功: ${tmdbName}`);
                                 }
                             }
                         }
@@ -1911,6 +1962,8 @@ class TaskService {
         }
         // 处理分享链接、访问码、分享文件夹的更新
         let shouldResetProgress = false;
+        let linkValidationError = null; // 记录链接验证错误，但不立即抛出
+
         if (updates.shareLink || updates.accessCode !== undefined || updates.shareFolderId) {
             const shareLink = updates.shareLink || task.shareLink;
             const accessCode = updates.accessCode !== undefined ? updates.accessCode : task.accessCode;
@@ -1924,10 +1977,19 @@ class TaskService {
                     const shareInfo = await this.getShareInfo(cloud189, shareCode);
                     if (shareInfo) {
                         if (shareInfo.shareMode == 1) {
-                            if (!accessCode) throw new Error('分享链接为私密链接, 请输入提取码');
-                            const accessCodeResponse = await cloud189.checkAccessCode(shareCode, accessCode);
-                            if (!accessCodeResponse || !accessCodeResponse.shareId) throw new Error('提取码无效');
-                            shareInfo.shareId = accessCodeResponse.shareId;
+                            if (!accessCode) {
+                                linkValidationError = '分享链接为私密链接，请输入提取码';
+                            } else {
+                                const accessCodeResponse = await cloud189.checkAccessCode(shareCode, accessCode);
+                                if (!accessCodeResponse || !accessCodeResponse.shareId) {
+                                    linkValidationError = '提取码无效，请检查后重试';
+                                } else {
+                                    shareInfo.shareId = accessCodeResponse.shareId;
+                                }
+                            }
+                            if (linkValidationError) {
+                                throw new Error(linkValidationError);
+                            }
                         }
 
                         task.shareLink = shareLink;
@@ -1955,8 +2017,24 @@ class TaskService {
                         }
                     }
                 } catch (e) {
-                    throw new Error('修改链接失败: ' + e.message);
+                    // 提供更友好的错误信息，帮助用户理解问题
+                    const errorMsg = e.message || '未知错误';
+                    logTaskEvent(`[任务更新] 分享链接验证失败: ${errorMsg}`);
+
+                    // 区分不同类型的错误，给出针对性提示
+                    if (errorMsg.includes('分享链接审核中')) {
+                        throw new Error('分享链接审核中，请稍后再试');
+                    } else if (errorMsg.includes('ShareNotFound') || errorMsg.includes('ShareExpired') || errorMsg.includes('ShareDeleted')) {
+                        throw new Error('分享链接已失效或不存在，请检查链接是否正确');
+                    } else if (errorMsg.includes('提取码') || errorMsg.includes('Invalid')) {
+                        throw new Error(errorMsg);
+                    } else {
+                        throw new Error(`分享链接验证失败: ${errorMsg}，请检查链接是否有效`);
+                    }
                 }
+            } else if (updates.shareLink) {
+                // 无法解析出 shareCode，说明链接格式不对
+                throw new Error('分享链接格式不正确，请检查是否为有效的天翼云盘分享链接');
             }
         }
 
