@@ -421,7 +421,8 @@ body::before, body::after {
     /* 顶栏内含主题/通知等悬浮菜单，必须高于任务卡片创建的独立堆叠层。 */
     z-index: 3000;
     height: var(--topbar-height);
-    background-color: var(--bg-sidebar);
+    /* 顶栏只保留结构边界，避免形成遮罩盖住页面背景。 */
+    background-color: transparent;
     display: flex;
     align-items: center;
     padding: 0 24px;
