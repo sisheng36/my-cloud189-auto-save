@@ -1017,14 +1017,15 @@ tbody th:last-child {
     background: var(--primary-hover, #4f46e5);
 }
 
-/* 影院模式隐藏双栏布局的海报和信息区 */
+/* 影院模式隐藏双栏布局的海报和信息区（但保留media-wall-info-cell因为它包含垂直卡片内容） */
 [data-theme="cinema"][data-ui-style="media"] .media-wall-poster,
-[data-theme="cinema"][data-ui-style="media"] .media-wall-info-cell,
+[data-theme="cinema"][data-ui-style="media"] .media-wall-poster-cell,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-topline,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-overview,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-latest,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-missing,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-path,
+[data-theme="cinema"][data-ui-style="media"] .media-wall-time,
 [data-theme="cinema"][data-ui-style="media"] .media-wall-actions {
     display: none !important;
 }
