@@ -75,4 +75,10 @@ function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', 'light');
         document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff');
     }
+
+    // 主题切换后重新渲染任务卡片（因为明亮和影院模式使用不同的HTML结构）
+    if (previousTheme !== theme && typeof fetchTasks === 'function') {
+        console.log('[Theme] 重新渲染任务卡片');
+        fetchTasks();
+    }
 }

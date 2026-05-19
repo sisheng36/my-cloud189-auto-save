@@ -272,11 +272,17 @@ function renderTaskMediaWall(tasks) {
     mediaWallTasksSnapshot = tasks;
     const tbody = document.querySelector('#taskTable tbody');
     tbody.innerHTML = '';
+
+    // 检查当前主题
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const isCinemaMode = currentTheme === 'cinema';
+
     tasks.forEach(task => {
         enrichTaskTmdb(task);
         taskList.push(task);
         const taskName = task.shareFolderName ? (task.resourceName + '/' + task.shareFolderName) : task.resourceName || '未知';
         const poster = getTaskPoster(task);
+        const overview = getTaskOverview(task);
         const latestSaved = formatLatestSavedFile(task);
         const metaLine = getTaskMetaLine(task);
         const tmdbContent = parseTmdbContent(task);
@@ -285,7 +291,7 @@ function renderTaskMediaWall(tasks) {
             const type = task.videoType === 'movie' ? 'movie' : 'tv';
             tmdbUrl = `https://www.themoviedb.org/${type}/${tmdbContent.id}`;
         }
-        
+
         // 计算进度条百分比
         let progressPercent = 0;
         if (task.totalEpisodes > 0 && task.currentEpisodes > 0) {
@@ -293,80 +299,132 @@ function renderTaskMediaWall(tasks) {
         } else if (task.status === 'completed') {
             progressPercent = 100;
         } else if (!task.lastSavedDisplayText && !task.lastSavedFileName) {
-            // 清缓存后无转存记录，进度为 0
             progressPercent = 0;
         } else {
-            // 有转存记录但无法计算进度，显示默认进度
             progressPercent = task.currentEpisodes > 0 ? Math.min(100, task.currentEpisodes * 10) : 0;
         }
 
+        if (isCinemaMode) {
+            // 影院模式：使用垂直卡片布局（背景图在tr上）
+            tbody.innerHTML += `
+                <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}' style="background-image: url('${poster || ''}')">
+                    <td class="media-wall-info-cell" style="display: contents;">
+                        <div class="media-card-top">
+                            ${renderStatusCapsule(task)}
+                        </div>
+
+                        <div class="media-card-hover-overview" onclick="event.stopPropagation();">
+                            ${overview}
+                        </div>
+
+                        <div class="media-card-bottom">
+                            <div class="media-wall-title" title="${taskName}" onclick="event.stopPropagation(); window.open('${task.shareLink}', '_blank');" style="cursor: pointer;">${taskName}</div>
+                            <div class="media-wall-meta" ${tmdbUrl ? `onclick="event.stopPropagation(); window.open('${tmdbUrl}', '_blank');" style="cursor: pointer;" title="查看TMDB详情"` : ''}>
+                                <i class="ph-fill ph-star" style="color: #fbbf24"></i>
+                                ${metaLine || '暂无信息'}
+                                ${tmdbUrl ? '<span style="margin-left: 8px; padding: 2px 6px; background: rgba(99, 102, 241, 0.2); border-radius: 4px; font-size: 11px; font-weight: 600;">TMDB</span>' : ''}
+                            </div>
+
+                            <div class="media-progress-container" onclick="event.stopPropagation(); showFileListModal('${task.id}');" style="cursor: pointer;" title="${getProgressTooltip(task)}">
+                                <div class="media-progress-text">
+                                    <span>${latestSaved}</span>
+                                    ${formatMissingEpisodes(task) ? `<span style="color: #fca5a5">${formatMissingEpisodes(task)}</span>` : ''}
+                                </div>
+                                <div class="media-progress-bar">
+                                    <div class="media-progress-fill" style="width: ${progressPercent}%"></div>
+                                </div>
+                            </div>
+
+                            <div class="media-card-footer">
+                                <div class="media-tags">
+                                    <span class="media-tag">${task.videoType === 'movie' ? '电影' : '剧集'}</span>
+                                    <span class="media-tag">${task.account?.username || '账号'}</span>
+                                </div>
+
+                                <div class="media-actions">
+                                    <div class="media-btn-circle primary execute-btn" onclick="event.stopPropagation(); executeTaskWithAnimation(this, ${task.id})" title="执行任务">
+                                        <i class="ph-fill ph-play"></i>
+                                    </div>
+                                    <div class="media-btn-circle more-actions-btn" onclick="event.stopPropagation(); toggleMoreActions(this, ${task.id})" title="更多操作">
+                                        <i class="ph ph-dots-three"></i>
+                                    </div>
+                                    <div class="media-btn-circle" style="color: #fca5a5; border-color: rgba(252,165,165,0.3);" onclick="event.stopPropagation(); deleteTask(${task.id})" title="删除任务">
+                                        <i class="ph ph-trash"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        } else {
+            // 明亮模式：使用主分支的双栏布局（海报+信息）
+            tbody.innerHTML += `
+                <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
+                    <td data-label="海报" class="media-wall-poster-cell">
+                        <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}"
+                             style="background-image:url('${poster}') ${tmdbUrl ? '; cursor: pointer;' : ''}"
+                             ${tmdbUrl ? `onclick="window.open('${tmdbUrl}', '_blank');"` : ''}>
+                            ${poster ? '' : '<span>暂无海报</span>'}
+                        </div>
+                    </td>
+                    <td data-label="信息" class="media-wall-info-cell">
+                        <div class="media-wall-topline">
+                            <span class="status-badge ${getStatusClass(task)}">${formatTaskStatus(task)}</span>
+                            ${metaLine ? `<span class="media-wall-meta">${metaLine}</span>` : ''}
+                            ${task.manualTmdbBound ? `<span class="tmdb-bound-badge" style="background:#10b981;color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;margin-left:6px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' 第' + task.manualSeason + '季' : ''}</span>` : ''}
+                        </div>
+                        <a href="${task.shareLink}" target="_blank" class='media-wall-title' title="${taskName}">${taskName}</a>
+                        <p class="media-wall-overview" title="${overview}">${overview}</p>
+                        <div class="media-wall-latest" title="${latestSaved}">${latestSaved}</div>
+                        ${formatMissingEpisodes(task) ? `<div class="media-wall-missing" title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
+                        <div class="media-wall-path" title="${task.realFolderName || task.realFolderId}">${task.realFolderName || task.realFolderId}</div>
+                        <div class="media-wall-time" style="font-size: 13px; color: #3b82f6; margin-top: 6px; font-weight: 500;">⏱ 更新: ${formatDateTime(task.lastFileUpdateTime) || '无'}</div>
+                        <div class="media-wall-actions">
+                            <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
+                            <button onclick="showEditTaskModal(${task.id})">修改</button>
+                            <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
+                            <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
+                            <button class="btn-default" onclick="showFileListModal('${task.id}')">目录</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    // 添加虚拟占位卡片（用于添加新任务）
+    if (isCinemaMode) {
         tbody.innerHTML += `
-            <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}' style="background-image: url('${poster || ''}')">
+            <tr class="media-wall-card add-task-placeholder" onclick="event.stopPropagation(); openCreateTaskModal()" style="cursor: pointer; background: transparent; border: 2px dashed rgba(99, 102, 241, 0.3); min-height: 380px;">
                 <td class="media-wall-info-cell" style="display: contents;">
-                    <div class="media-card-top">
-                        ${renderStatusCapsule(task)}
+                    <td style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px;">
+                        <div class="add-task-icon" style="width: 80px; height: 80px; border-radius: 50%; background: transparent; border: 2px dashed rgba(99, 102, 241, 0.5); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; transition: all 0.3s ease;">
+                            <i class="ph ph-plus" style="font-size: 40px; color: #6366f1;"></i>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">添加新任务</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">点击创建新的转存任务</div>
+                    </td>
+                </td>
+            </tr>
+        `;
+    } else {
+        tbody.innerHTML += `
+            <tr class="media-wall-card add-task-placeholder" onclick="event.stopPropagation(); openCreateTaskModal()" style="cursor: pointer;">
+                <td data-label="海报" class="media-wall-poster-cell">
+                    <div class="media-wall-poster is-placeholder" style="display: flex; align-items: center; justify-content: center;">
+                        <i class="ph ph-plus" style="font-size: 40px; color: rgba(120, 53, 15, 0.5);"></i>
                     </div>
-
-                    <div class="media-card-hover-overview" onclick="event.stopPropagation();">
-                        ${getTaskOverview(task)}
-                    </div>
-
-                    <div class="media-card-bottom">
-                        <div class="media-wall-title" title="${taskName}" onclick="event.stopPropagation(); window.open('${task.shareLink}', '_blank');" style="cursor: pointer;">${taskName}</div>
-                        <div class="media-wall-meta" ${tmdbUrl ? `onclick="event.stopPropagation(); window.open('${tmdbUrl}', '_blank');" style="cursor: pointer;" title="查看TMDB详情"` : ''}>
-                            <i class="ph-fill ph-star" style="color: #fbbf24"></i>
-                            ${metaLine || '暂无信息'}
-                            ${tmdbUrl ? '<span style="margin-left: 8px; padding: 2px 6px; background: rgba(99, 102, 241, 0.2); border-radius: 4px; font-size: 11px; font-weight: 600;">TMDB</span>' : ''}
-                        </div>
-
-                        <div class="media-progress-container" onclick="event.stopPropagation(); showFileListModal('${task.id}');" style="cursor: pointer;" title="${getProgressTooltip(task)}">
-                            <div class="media-progress-text">
-                                <span>${latestSaved}</span>
-                                ${formatMissingEpisodes(task) ? `<span style="color: #fca5a5">${formatMissingEpisodes(task)}</span>` : ''}
-                            </div>
-                            <div class="media-progress-bar">
-                                <div class="media-progress-fill" style="width: ${progressPercent}%"></div>
-                            </div>
-                        </div>
-
-                        <div class="media-card-footer">
-                            <div class="media-tags">
-                                <span class="media-tag">${task.videoType === 'movie' ? '电影' : '剧集'}</span>
-                                <span class="media-tag">${task.account?.username || '账号'}</span>
-                            </div>
-
-                            <div class="media-actions">
-                                <div class="media-btn-circle primary execute-btn" onclick="event.stopPropagation(); executeTaskWithAnimation(this, ${task.id})" title="执行任务">
-                                    <i class="ph-fill ph-play"></i>
-                                </div>
-                                <div class="media-btn-circle more-actions-btn" onclick="event.stopPropagation(); toggleMoreActions(this, ${task.id})" title="更多操作">
-                                    <i class="ph ph-dots-three"></i>
-                                </div>
-                                <div class="media-btn-circle" style="color: #fca5a5; border-color: rgba(252,165,165,0.3);" onclick="event.stopPropagation(); deleteTask(${task.id})" title="删除任务">
-                                    <i class="ph ph-trash"></i>
-                                </div>
-                            </div>
-                        </div>
+                </td>
+                <td data-label="信息" class="media-wall-info-cell" style="display: flex; align-items: center; justify-content: center;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 18px; font-weight: 600; color: var(--text-color); margin-bottom: 4px;">添加新任务</div>
+                        <div style="font-size: 13px; color: rgba(100, 116, 139, 0.88);">点击创建新的转存任务</div>
                     </div>
                 </td>
             </tr>
         `;
-    });
-    
-    // 添加虚拟占位卡片（用于添加新任务）
-    tbody.innerHTML += `
-        <tr class="media-wall-card add-task-placeholder" onclick="event.stopPropagation(); openCreateTaskModal()" style="cursor: pointer; background: transparent; border: 2px dashed rgba(99, 102, 241, 0.3); min-height: 380px;">
-            <td class="media-wall-info-cell" style="display: contents;">
-                <td style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px;">
-                    <div class="add-task-icon" style="width: 80px; height: 80px; border-radius: 50%; background: transparent; border: 2px dashed rgba(99, 102, 241, 0.5); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; transition: all 0.3s ease;">
-                        <i class="ph ph-plus" style="font-size: 40px; color: #6366f1;"></i>
-                    </div>
-                    <div style="font-size: 16px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;">添加新任务</div>
-                    <div style="font-size: 13px; color: var(--text-muted);">点击创建新的转存任务</div>
-                </td>
-            </td>
-        </tr>
-    `;
+    }
 }
 
 var taskList = []
