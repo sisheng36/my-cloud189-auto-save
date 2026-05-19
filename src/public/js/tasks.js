@@ -1551,8 +1551,8 @@ function formatDateTime(dateStr) {
 
 const statusOptions = {
     pending: '等待中',
-    processing: '运行中',
-    completed: '成功',
+    processing: '追更中',
+    completed: '已完结',
     failed: '失败',
     paused: '暂停中'
 }
@@ -1563,13 +1563,13 @@ function formatStatus(status) {
 
 // 根据任务状态和剧集数量显示更精确的状态文字
 function formatTaskStatus(task) {
-    if (task.status === 'completed') return '成功';
+    if (task.status === 'completed') return '已完结';
     if (task.status === 'failed') return '失败';
-    if (task.status === 'processing') return '运行中';
+    if (task.status === 'processing') return '追更中';
     if (task.status === 'paused') return '暂停中';
     if (task.status === 'pending') {
-        // pending 但已有剧集进度时，说明任务已进入追更/转存链路，展示为运行中而不是等待中。
-        if (task.currentEpisodes > 0) return '运行中';
+        // pending 但已有剧集进度时，说明任务已进入追更/转存链路，展示为追更中而不是等待中。
+        if (task.currentEpisodes > 0) return '追更中';
         return '等待中';
     }
     return task.status;
@@ -1591,8 +1591,8 @@ function getStatusClass(task) {
 function getStatusMeta(task) {
     const className = getStatusClass(task);
     const metaMap = {
-        'status-processing': { icon: 'ph ph-activity', label: '运行中' },
-        'status-completed': { icon: 'ph ph-check-circle', label: '成功' },
+        'status-processing': { icon: 'ph ph-activity', label: '追更中' },
+        'status-completed': { icon: 'ph ph-check-circle', label: '已完结' },
         'status-failed': { icon: 'ph ph-x-circle', label: '失败' },
         'status-paused': { icon: 'ph ph-pause-circle', label: '暂停中' },
         'status-pending': { icon: 'ph ph-clock', label: '等待中' }
