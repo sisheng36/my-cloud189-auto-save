@@ -300,6 +300,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchInput.focus();
             }
         });
+
+        // 全局搜索框过滤任务功能
+        const performGlobalSearch = debounce(() => {
+            const searchValue = searchInput.value.trim();
+            // 更新任务过滤参数并刷新任务列表
+            if (typeof taskFilterParams !== 'undefined') {
+                taskFilterParams.search = searchValue;
+                if (typeof fetchTasks === 'function') {
+                    fetchTasks();
+                }
+            }
+        }, 500);
+
+        // 输入时触发搜索（防抖）
+        searchInput.addEventListener('input', performGlobalSearch);
+
+        // 回车键立即搜索
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performGlobalSearch.cancel && performGlobalSearch.cancel();
+                const searchValue = searchInput.value.trim();
+                if (typeof taskFilterParams !== 'undefined') {
+                    taskFilterParams.search = searchValue;
+                    if (typeof fetchTasks === 'function') {
+                        fetchTasks();
+                    }
+                }
+            }
+        });
     }
 
     // 主题切换由 theme.js 的 initTheme() 统一处理
