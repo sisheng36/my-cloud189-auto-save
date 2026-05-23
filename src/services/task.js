@@ -395,14 +395,27 @@ class TaskService {
                             detail = await tmdbService.getTVDetails(extractedTmdbId);
                             tmdbType = 'tv';
                         } else {
-                            // 未指定类型，优先尝试 TV（因为 CAS 资源多为剧集）
-                            detail = await tmdbService.getTVDetails(extractedTmdbId);
-                            if (detail && detail.title) {
-                                tmdbType = 'tv';
-                            } else {
+                            // 未指定类型，使用启发式推断结果决定搜索顺序
+                            const searchType = inferredType || 'tv';
+                            if (searchType === 'movie') {
                                 detail = await tmdbService.getMovieDetails(extractedTmdbId);
                                 if (detail && detail.title) {
                                     tmdbType = 'movie';
+                                } else {
+                                    detail = await tmdbService.getTVDetails(extractedTmdbId);
+                                    if (detail && detail.title) {
+                                        tmdbType = 'tv';
+                                    }
+                                }
+                            } else {
+                                detail = await tmdbService.getTVDetails(extractedTmdbId);
+                                if (detail && detail.title) {
+                                    tmdbType = 'tv';
+                                } else {
+                                    detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                                    if (detail && detail.title) {
+                                        tmdbType = 'movie';
+                                    }
                                 }
                             }
                         }
