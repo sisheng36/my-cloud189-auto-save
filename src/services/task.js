@@ -206,7 +206,8 @@ class TaskService {
 
         // 3. 移除季集信息 (S01E01, S01, E01, 第1集, 第1季 等)
         name = name.replace(/\.S\d+[-_ ]*E\d+/gi, '.');  // S01E01
-        name = name.replace(/\.S\d+/gi, '.');            // S01
+        name = name.replace(/\.S\d+.*/i, '');            // S01 → 截断其后所有内容
+        name = name.replace(/\s+S\d+\s*.*/i, '');        // S01 (空格版) → 截断
         name = name.replace(/\.E[P]?\d+/gi, '.');        // E01, EP01
         name = name.replace(/\.第\s*\d+\s*[集季话]/gi, '.'); // 第1集, 第1季, 第1话
 
