@@ -11,8 +11,6 @@ on:
         description: '输入要构建的镜像版本号 (例如: 1.0.0)，留空则自动从 package.json 读取'
         required: false
         default: ''
-  push:
-    branches: [ "main", "master", "dev" ]
 
 env:
   REGISTRY: ghcr.io
