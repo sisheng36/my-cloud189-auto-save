@@ -2,6 +2,9 @@ name: Build and Push to GHCR
 
 # 允许手动触发工作流，也可以配置当推送到主干或开发分支时自动触发
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
