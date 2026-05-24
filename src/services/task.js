@@ -562,8 +562,8 @@ class TaskService {
             // 极速重命名只适用于: 手动绑定 TMDB、TMDB ID 提取成功、或 TMDB 搜索匹配成功
             if (allMatched && files.length > 0 && tmdbParsed) {
                 logTaskEvent(`极速版重命名生效: TMDB已匹配【${tmdbName}】，本地正则全量匹配成功，跳过耗时的AI请求`);
-                // TMDB搜索结果优先，其次启发式推断，最后用户指定
-                const finalType = tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie") || taskDto?.videoType || "tv";
+                // 优先使用用户指定的类型，其次TMDB类型，最后根据文件数量自动判断
+                const finalType = taskDto?.videoType || tmdbType || (localParsedEpisodes.length > 1 ? "tv" : "movie");
                 return {
                     name: finalName,
                     year: year || 0,
@@ -595,8 +595,8 @@ class TaskService {
                 }
             }
 
-            // 如果TMDB匹配失败，回退到用户指定的类型
-            if (!tmdbParsed && taskDto?.videoType && result.data) {
+            // 如果用户指定了类型，强制使用用户指定的类型
+            if (taskDto?.videoType && result.data) {
                 result.data.type = taskDto.videoType;
             }
 
