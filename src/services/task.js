@@ -322,8 +322,8 @@ class TaskService {
 
             // ====== 启发式判断视频类型（在 TMDB 搜索前分析资源特征） ======
             let inferredType = null; // 启发式推断的类型，优先级低于用户指定
+            // 1. 根据保存路径中的关键字判断（仅当用户未指定类型时）
             if (!taskDto?.videoType) {
-                // 1. 根据保存路径中的关键字判断
                 const savePath = taskDto?.realFolderName || '';
                 const moviePathKeywords = ['/电影/', '/Movies/', '/Movie/', '/movie/', '/影片/'];
                 const tvPathKeywords = ['/电视剧/', '/TV/', '/Tv/', '/tv/', '/剧集/', '/动漫/', '/番剧/'];
@@ -334,31 +334,30 @@ class TaskService {
                     inferredType = 'tv';
                     logTaskEvent(`[AI重命名] 启发式判断：保存路径含电视剧关键字 -> 推断为电视剧`);
                 }
+            }
 
-                // 2. 根据文件数量判断（单文件更可能是电影）
-                if (!inferredType && files && files.length > 0) {
-                    const mediaFiles = files.filter(f => !f.isFolder);
-                    if (mediaFiles.length === 1) {
-                        inferredType = 'movie';
-                        logTaskEvent(`[AI重命名] 启发式判断：仅1个媒体文件 -> 推断为电影`);
-                    }
+            // 2. 根据文件数量判断（单文件更可能是电影）
+            if (!inferredType && files && files.length > 0) {
+                const mediaFiles = files.filter(f => !f.isFolder);
+                if (mediaFiles.length === 1) {
+                    inferredType = 'movie';
+                    logTaskEvent(`[AI重命名] 启发式判断：仅1个媒体文件 -> 推断为电影`);
                 }
+            }
 
-                // 3. 根据文件名中的季集信息判断（有季集标识则是电视剧）
-                if (!inferredType && files && files.length > 0) {
-                    const hasEpisodePattern = files.some(f =>
-                        /S\d+[-_ ]*E\d+|第\s*\d+\s*[集话]|EP?\d+/i.test(f.name || '')
-                    );
-                    if (hasEpisodePattern) {
-                        inferredType = 'tv';
-                        logTaskEvent(`[AI重命名] 启发式判断：文件名含季集标识 -> 推断为电视剧`);
-                    }
+            // 3. 根据文件名中的季集信息判断（有季集标识则是电视剧）
+            if (!inferredType && files && files.length > 0) {
+                const hasEpisodePattern = files.some(f =>
+                    /S\d+[-_ ]*E\d+|第\s*\d+\s*[集话]|EP?\d+/i.test(f.name || '')
+                );
+                if (hasEpisodePattern) {
+                    inferredType = 'tv';
+                    logTaskEvent(`[AI重命名] 启发式判断：文件名含季集标识 -> 推断为电视剧`);
                 }
+            }
 
-                // 4. 多文件且无季集信息，可能是电影合集，仍优先搜电视剧（安全回退）
-                if (inferredType) {
-                    logTaskEvent(`[AI重命名] 启发式判断最终结果: ${inferredType === 'movie' ? '电影' : '电视剧'}`);
-                }
+            if (inferredType) {
+                logTaskEvent(`[AI重命名] 启发式判断最终结果: ${inferredType === 'movie' ? '电影' : '电视剧'}`);
             }
 
             try {
