@@ -631,6 +631,7 @@ AppDataSource.initialize().then(async () => {
                             }
                         }
                         messageUtil.sendMessage(message);
+                        messageUtil.sendWebhookMessage(message);
 
                         // 重命名后触发 Emby 扫库
                         const { EmbyService } = require('./services/emby');
