@@ -650,7 +650,7 @@ AppDataSource.initialize().then(async () => {
                     messageUtil.sendMessage(`❌《${task.resourceName}》TMDB绑定后重命名失败: ${e.message}`);
                 }
             };
-            renameTask().catch(() => {}); // 异步执行，不阻塞
+            renameTask().catch(e => logTaskEvent(`[TMDB绑定] 异步重命名失败: ${e.message}`)); // 异步执行，不阻塞
 
             res.json({ success: true, data: task });
         } catch (error) {
