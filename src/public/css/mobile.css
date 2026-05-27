@@ -199,38 +199,22 @@
     }
 
     /* ---------- 任务卡片 ---------- */
-    /* 移动端媒体墙（明亮模式）：单列 + 竖向排列（海报在上，信息在下） */
+    /* 移动端媒体墙（明亮模式）：单列布局 */
     [data-ui-style="media"] #taskTable tbody {
         display: grid !important;
         grid-template-columns: 1fr !important;
-        gap: 16px;
+        gap: 12px;
     }
 
     [data-ui-style="media"] #taskTable tr.media-wall-card {
-        grid-template-columns: 1fr !important;
-        grid-template-rows: auto auto;
-        gap: 0;
-        padding: 0;
-        overflow: hidden;
-    }
-
-    /* 海报单元格：顶部全宽展示 */
-    .media-wall-poster-cell {
-        width: 100% !important;
+        grid-template-columns: 100px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px;
     }
 
     .media-wall-poster {
-        width: 100% !important;
-        min-height: 200px !important;
-        max-height: 260px !important;
-        border-radius: 0 !important;
-        aspect-ratio: 2 / 3;
-        object-fit: cover;
-    }
-
-    /* 信息区域：海报下方 */
-    .media-wall-info-cell {
-        padding: 14px !important;
+        width: 100px;
+        min-height: 150px;
     }
 
     .media-wall-title {
@@ -245,21 +229,6 @@
         min-height: auto;
         -webkit-line-clamp: 2;
         font-size: 12px;
-    }
-
-    .media-wall-actions {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .media-wall-actions button {
-        padding: 6px 10px;
-        font-size: 12px;
-    }
-
-    /* 明亮模式添加任务占位卡片 */
-    [data-ui-style="media"]:not([data-theme="cinema"]) .add-task-placeholder {
-        min-height: 160px !important;
     }
 
     /* 影院模式卡片移动端：单列布局 + 竖向海报卡片 */
