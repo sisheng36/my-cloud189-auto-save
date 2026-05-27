@@ -1,6 +1,9 @@
 const CACHE_NAME = 'cloud189-cache-v1';
 
 const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/login.html',
   '/css/base.css',
   '/css/folder-tree.css',
   '/css/modal.css',
@@ -98,6 +101,14 @@ self.addEventListener('fetch', event => {
   ) {
     event.respondWith(
       caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  // 导航请求 — 网络优先，失败时用缓存兜底
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match('/index.html'))
     );
     return;
   }
