@@ -134,26 +134,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebarPin = document.getElementById('sidebarPin');
     const sidebar = document.querySelector('.sidebar');
-    
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    // 显示遮罩层
+    const showOverlay = () => {
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.add('show');
+        }
+    };
+
+    // 隐藏遮罩层
+    const hideOverlay = () => {
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('show');
+        }
+    };
+
+    // 关闭侧边栏（移动端）
+    const closeSidebar = () => {
+        if (sidebar && window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+            hideOverlay();
+        }
+    };
+
     if (sidebarToggle && sidebar) {
         // 切换按钮：展开/收起侧边栏
         sidebarToggle.addEventListener('click', () => {
             if (sidebar.classList.contains('pinned')) {
                 // 如果已固定，取消固定并收起
                 sidebar.classList.remove('pinned', 'open');
+                hideOverlay();
             } else {
                 // 否则切换展开状态
+                const isOpening = !sidebar.classList.contains('open');
                 sidebar.classList.toggle('open');
+                // 移动端：显示/隐藏遮罩层
+                if (window.innerWidth <= 768) {
+                    if (isOpening) {
+                        showOverlay();
+                    } else {
+                        hideOverlay();
+                    }
+                }
             }
         });
-        
+
+        // 点击遮罩层关闭侧边栏（移动端）
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeSidebar);
+        }
+
         // 点击侧边栏外部关闭（仅在展开且未固定时）
         document.addEventListener('click', (e) => {
-            if (sidebar.classList.contains('open') && 
+            if (sidebar.classList.contains('open') &&
                 !sidebar.classList.contains('pinned') &&
-                !sidebar.contains(e.target) && 
-                !sidebarToggle.contains(e.target)) {
+                !sidebar.contains(e.target) &&
+                !sidebarToggle.contains(e.target) &&
+                !(sidebarOverlay && sidebarOverlay.contains(e.target))) {
                 sidebar.classList.remove('open');
+                hideOverlay();
+            }
+        });
+
+        // 窗口大小改变时处理遮罩层
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                hideOverlay();
+            } else if (sidebar.classList.contains('open') && !sidebar.classList.contains('pinned')) {
+                showOverlay();
             }
         });
     }
