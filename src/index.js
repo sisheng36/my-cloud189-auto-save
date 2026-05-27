@@ -401,36 +401,39 @@ AppDataSource.initialize().then(async () => {
             },
             where: whereClause
         });
-        const taskEventHandler = new TaskEventHandler();
-        for (const task of tasks) {
-            const hasSavedDisplay = task.lastSavedDisplayText || task.lastSavedFileName || task.missingEpisodes;
-            if (hasSavedDisplay || !task.lastFileUpdateTime || !task.realFolderId || task.enableSystemProxy) {
-                continue;
-            }
-            try {
-                const account = await accountRepo.findOneBy({ id: task.accountId });
-                if (!account) {
-                    continue;
-                }
-                task.account = account;
-                const taskFiles = await taskService.getFilesByTask(task);
-                const latestSavedDisplay = taskEventHandler.buildLatestSavedDisplay(task, taskFiles);
-                if (!latestSavedDisplay.lastSavedDisplayText && !latestSavedDisplay.lastSavedFileName) {
-                    continue;
-                }
-                task.lastSavedFileName = latestSavedDisplay.lastSavedFileName;
-                task.lastSavedDisplayText = latestSavedDisplay.lastSavedDisplayText;
-                task.missingEpisodes = latestSavedDisplay.missingEpisodes;
-                await taskRepo.save(task);
-            } catch (error) {
-                logTaskEvent(`任务[${task.resourceName}]初始化最新转存信息失败: ${error.message}`);
-            }
-        }
         // username脱敏
         tasks.forEach(task => {
             task.account.username = task.account.username.replace(/(.{3}).*(.{4})/, '$1****$2');
         });
         res.json({ success: true, data: tasks });
+        // 异步更新任务显示信息，不阻塞响应
+        process.nextTick(async () => {
+            const taskEventHandler = new TaskEventHandler();
+            for (const task of tasks) {
+                const hasSavedDisplay = task.lastSavedDisplayText || task.lastSavedFileName || task.missingEpisodes;
+                if (hasSavedDisplay || !task.lastFileUpdateTime || !task.realFolderId || task.enableSystemProxy) {
+                    continue;
+                }
+                try {
+                    const account = await accountRepo.findOneBy({ id: task.accountId });
+                    if (!account) {
+                        continue;
+                    }
+                    task.account = account;
+                    const taskFiles = await taskService.getFilesByTask(task);
+                    const latestSavedDisplay = taskEventHandler.buildLatestSavedDisplay(task, taskFiles);
+                    if (!latestSavedDisplay.lastSavedDisplayText && !latestSavedDisplay.lastSavedFileName) {
+                        continue;
+                    }
+                    task.lastSavedFileName = latestSavedDisplay.lastSavedFileName;
+                    task.lastSavedDisplayText = latestSavedDisplay.lastSavedDisplayText;
+                    task.missingEpisodes = latestSavedDisplay.missingEpisodes;
+                    await taskRepo.save(task);
+                } catch (error) {
+                    logTaskEvent(`任务[${task.resourceName}]初始化最新转存信息失败: ${error.message}`);
+                }
+            }
+        });
     });
 
     app.post('/api/tasks', async (req, res) => {
