@@ -919,6 +919,13 @@
 <script src="/js/strm.js"></script>
 <script src="/js/customPush.js"></script> 
 
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js');
+  });
+}
+</script>
 
 </body>
 </html>
