@@ -528,18 +528,16 @@ class CinemaBackground {
         if (taskCard && taskCard.dataset.taskId) {
             const clickedTaskId = taskCard.dataset.taskId;
 
-            // 移动端：只切换简介显示，不锁定海报
-            if (this.isMobile()) {
-                this.toggleCardOverview(taskCard);
-                return;
-            }
-
-            // 桌面端：如果点击的是当前已锁定的任务，则解除锁定
+            // 如果点击的是当前已锁定的任务，则解除锁定
             if (this.lockedTaskId == clickedTaskId) {
                 this.unlock();
                 return;
             }
 
+            // 移动端：点击卡片切换简介显示状态
+            if (this.isMobile()) {
+                this.toggleCardOverview(taskCard);
+            }
             // 点击任务卡片 - 锁定海报
             this.lockToTask(clickedTaskId);
         } else if (!e.target.closest('.sidebar') &&

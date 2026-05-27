@@ -7,34 +7,20 @@
     /* ---------- 基础布局 ---------- */
     .app-layout {
         flex-direction: column;
-        overflow: hidden; /* 禁止整体滚动，由子容器处理 */
     }
 
-    /* 禁止整个页面的水平滚动 */
+    /* 禁止水平滚动 */
     body {
-        overflow: hidden;
-        width: 100%;
-        max-width: 100vw;
+        overflow-x: hidden;
     }
 
-    /* 页面容器：允许垂直滚动，禁止水平滚动 */
     .page-container {
         overflow-x: hidden;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
     }
 
-    /* 主内容区：禁止水平滚动 */
-    .main-content {
-        overflow: hidden;
-        width: 100%;
-        max-width: 100%;
-    }
-
-    /* 侧边栏：移动端默认全屏覆盖 */
+    /* 侧边栏：移动端全屏覆盖 */
     .sidebar {
         width: 100%;
         max-width: 280px;
@@ -46,7 +32,6 @@
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
     }
 
-    /* 固定状态在移动端不生效，保持覆盖模式 */
     .sidebar.pinned {
         position: fixed;
         transform: translateX(-100%);
@@ -75,40 +60,32 @@
         opacity: 1;
     }
 
-    /* 顶栏：紧凑布局，确保不截断 */
+    /* 顶栏：紧凑布局 */
     .topbar {
         height: 56px;
-        padding: 0 60px 0 8px; /* 右侧留出主题按钮绝对定位的空间 */
+        padding: 0 12px;
         gap: 8px;
-        overflow: visible !important; /* 确保下拉菜单不被截断 */
-        width: 100%;
-        box-sizing: border-box;
     }
 
-    /* 菜单按钮：更小更紧凑 */
     .sidebar-toggle {
         padding: 6px 10px;
         font-size: 13px;
         gap: 4px;
-        flex-shrink: 0; /* 防止被压缩 */
     }
 
     .sidebar-toggle span {
-        display: none; /* 隐藏"菜单"文字，只显示图标 */
+        display: none;
     }
 
     .sidebar-toggle i {
         font-size: 20px;
     }
 
-    /* 搜索框：自适应宽度 */
     .topbar-search {
-        flex: 1 1 auto;
-        max-width: none; /* 移除最大宽度限制 */
-        width: auto;
+        flex: 1;
+        max-width: none;
         height: 36px;
         padding: 0 12px;
-        min-width: 60px; /* 最小宽度 */
     }
 
     .topbar-search input {
@@ -119,32 +96,20 @@
         display: none !important;
     }
 
-    /* 顶栏操作区：紧凑排列 */
     .topbar-actions {
         gap: 6px;
         padding-right: 0;
-        margin-left: auto;
-        flex-shrink: 0; /* 防止被压缩 */
     }
 
     .notification-btn,
     .theme-toggle-btn {
         width: 36px;
         height: 36px;
-        flex-shrink: 0; /* 防止按钮被压缩 */
     }
 
     .notification-btn i,
     .theme-toggle-btn i {
         font-size: 18px;
-    }
-
-    /* 主题开关位置：移动端调整右侧位置 */
-    .topbar .theme-switch {
-        position: absolute;
-        right: 12px;
-        transform: translateY(-50%);
-        margin: 0;
     }
 
     /* 页面容器 */
@@ -194,90 +159,20 @@
     }
 
     /* ---------- 任务卡片 ---------- */
-    /* 移动端媒体墙：单列布局，禁止水平滚动 */
+    /* 移动端媒体墙：单列布局 */
     [data-ui-style="media"] #taskTable tbody {
-        display: flex !important;
-        flex-direction: column;
-        gap: 12px;
-        width: 100%;
-        overflow-x: hidden;
-    }
-
-    /* 移动端卡片：全宽，不限制最小宽度 */
-    [data-ui-style="media"] #taskTable tr.media-wall-card {
-        display: flex !important;
-        flex-direction: column;
-        width: 100%;
-        min-width: auto;
-        grid-template-columns: 1fr !important;
-        gap: 0;
-        padding: 14px;
-        margin: 0;
-    }
-
-    /* 影院模式移动端卡片 */
-    [data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card {
-        height: auto !important;
-        min-height: 200px !important;
-    }
-
-    /* 明亮模式移动端卡片：垂直布局 */
-    [data-ui-style="media"] #taskTable tr.media-wall-card td.media-wall-poster-cell,
-    [data-ui-style="media"] #taskTable tr.media-wall-card td.media-wall-info-cell {
-        width: 100%;
-    }
-
-    /* 移动端海报：水平布局 */
-    .media-wall-poster {
-        width: 100%;
-        min-height: 180px;
-        border-radius: 12px;
-    }
-
-    /* 移动端信息区 */
-    .media-wall-info-cell {
-        padding-top: 12px;
-    }
-
-    .task-card {
-        padding: 12px;
-    }
-
-    .task-card-title {
-        font-size: 14px;
-    }
-
-    .task-card-meta {
-        font-size: 12px;
-    }
-
-    /* 任务操作按钮 */
-    .task-actions {
-        flex-wrap: wrap;
-        gap: 6px;
-    }
-
-    .task-actions button {
-        padding: 6px 10px;
-        font-size: 12px;
-    }
-
-    /* 任务更多操作菜单 */
-    .task-more-menu {
-        right: 0;
-        left: auto;
-        min-width: 140px;
-    }
-
-    /* ---------- 媒体墙卡片（明亮模式移动端适配）---------- */
-    /* 明亮模式：海报和信息水平排列 */
-    [data-ui-style="media"] #taskTable tr.media-wall-card:not([data-theme="cinema"]) {
         display: grid !important;
-        grid-template-columns: 100px 1fr !important;
-        gap: 12px !important;
+        grid-template-columns: 1fr;
+        gap: 12px;
     }
 
-    [data-ui-style="media"] #taskTable tr.media-wall-card:not([data-theme="cinema"]) .media-wall-poster {
+    [data-ui-style="media"] #taskTable tr.media-wall-card {
+        grid-template-columns: 100px minmax(0, 1fr);
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .media-wall-poster {
         width: 100px;
         min-height: 150px;
     }
@@ -294,6 +189,34 @@
         min-height: auto;
         -webkit-line-clamp: 2;
         font-size: 12px;
+    }
+
+    .task-card {
+        padding: 12px;
+    }
+
+    .task-card-title {
+        font-size: 14px;
+    }
+
+    .task-card-meta {
+        font-size: 12px;
+    }
+
+    .task-actions {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .task-actions button {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .task-more-menu {
+        right: 0;
+        left: auto;
+        min-width: 140px;
     }
 
     /* ---------- 模态框 ---------- */
@@ -329,10 +252,9 @@
     .form-group select,
     .form-group textarea {
         padding: 10px 12px;
-        font-size: 16px; /* 防止 iOS 自动缩放 */
+        font-size: 16px;
     }
 
-    /* 模态框底部按钮 */
     .modal-footer,
     .form-footer {
         padding: 12px 16px;
@@ -348,16 +270,9 @@
 
     /* ---------- 表格视图 ---------- */
     .table-container {
-        overflow-x: hidden; /* 禁止水平滚动 */
-        overflow-y: auto;
+        overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         width: 100%;
-    }
-
-    /* 表格视图（非媒体墙模式）：允许水平滚动查看完整表格 */
-    [data-ui-style="console"] .table-container,
-    .table-container:not([data-ui-style="media"]) {
-        overflow-x: auto;
     }
 
     table {
@@ -399,7 +314,6 @@
         font-size: 16px;
     }
 
-    /* 代理服务选项 */
     .proxy-services-container {
         flex-direction: column;
     }
@@ -472,7 +386,6 @@
    超小屏幕：480px 以下
    ============================================ */
 @media screen and (max-width: 480px) {
-    /* 顶栏更紧凑 */
     .topbar {
         height: 50px;
         padding: 0 8px;
@@ -502,17 +415,14 @@
         height: 32px;
     }
 
-    /* 页面容器更小内边距 */
     .page-container {
         padding: 12px;
     }
 
-    /* 仪表盘单列 */
     .hero-stats {
         grid-template-columns: 1fr !important;
     }
 
-    /* 任务卡片更紧凑 */
     .task-card {
         padding: 10px;
     }
@@ -521,7 +431,6 @@
         font-size: 13px;
     }
 
-    /* 模态框全屏 */
     .modal-content {
         width: 100% !important;
         height: 100vh;
@@ -540,7 +449,6 @@
    ============================================ */
 @media screen and (max-width: 768px) {
     [data-theme="cinema"] {
-        /* 影院模式背景保持 */
         background-attachment: fixed;
     }
 
@@ -553,7 +461,6 @@
         background: rgba(0, 0, 0, 0.7);
     }
 
-    /* 影院模式顶栏：透明背景 */
     [data-theme="cinema"] .topbar {
         background: transparent;
         border-bottom-color: rgba(99, 102, 241, 0.15);
@@ -574,13 +481,11 @@
         border-color: rgba(99, 102, 241, 0.2);
     }
 
-    /* 影院模式任务卡片 */
     [data-theme="cinema"] .task-card {
         background: rgba(30, 41, 59, 0.9);
         border-color: rgba(99, 102, 241, 0.15);
     }
 
-    /* 影院模式按钮 */
     [data-theme="cinema"] .sidebar-toggle,
     [data-theme="cinema"] .notification-btn,
     [data-theme="cinema"] .theme-toggle-btn {
@@ -588,7 +493,6 @@
         box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
     }
 
-    /* 影院模式仪表盘 */
     [data-theme="cinema"] .panel-card {
         background: rgba(30, 41, 59, 0.8);
         border-color: rgba(99, 102, 241, 0.15);
@@ -599,15 +503,15 @@
         border-color: rgba(99, 102, 241, 0.15);
     }
 
-    /* 影院模式锁定指示器：移动端位置调整，放在左下角避免挡住更多按钮 */
+    /* 影院模式锁定指示器 */
     .cinema-locked-indicator {
-        bottom: 20px;
-        left: 12px;
-        right: auto;
+        bottom: 80px;
+        right: 12px;
+        left: auto;
         max-width: 200px;
-        padding: 8px 12px;
-        font-size: 11px;
-        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 12px;
+        border-radius: 12px;
     }
 
     .cinema-locked-text {
@@ -615,28 +519,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-    }
-
-    /* 影院模式媒体墙卡片：移动端垂直布局 */
-    [data-theme="cinema"][data-ui-style="media"] #taskTable tbody {
-        display: flex !important;
-        flex-direction: column;
-        gap: 12px;
-        overflow-x: hidden;
-    }
-
-    [data-theme="cinema"][data-ui-style="media"] #taskTable tr.media-wall-card {
-        height: auto !important;
-        min-height: 220px !important;
-        padding: 12px;
-    }
-
-    /* 影院模式移动端卡片内容 */
-    [data-theme="cinema"] .media-card-hover-overview {
-        padding: 16px;
-        padding-top: 50px;
-        padding-bottom: 120px;
-        font-size: 12px;
     }
 
     /* 影院模式移动端底部信息 */
@@ -652,7 +534,7 @@
         font-size: 11px;
     }
 
-    /* 影院模式移动端操作按钮：确保更多按钮可点击 */
+    /* 影院模式移动端操作按钮 */
     [data-theme="cinema"] .media-actions {
         gap: 6px;
     }
@@ -662,22 +544,11 @@
         height: 36px;
     }
 
-    /* 影院模式移动端：点击切换简介（而非hover） */
-    /* 移动端禁用hover显示简介 */
-    [data-theme="cinema"] #taskTable tr.media-wall-card:hover .media-card-hover-overview {
-        opacity: 0;
-    }
-
-    /* 通过JS添加的class来控制简介显示 */
-    [data-theme="cinema"] #taskTable tr.media-wall-card.overview-expanded .media-card-hover-overview {
-        opacity: 1 !important;
-    }
-
-    /* 浮动按钮组：移动端位置调整 */
+    /* 浮动按钮组 */
     .floating-btn-group {
         right: 12px;
         bottom: 12px;
-        z-index: 999; /* 低于锁定指示器 */
+        z-index: 999;
     }
 
     .floating-btn {
@@ -700,7 +571,6 @@
         border-right-color: var(--border-color);
     }
 
-    /* 明亮模式顶栏：确保透明或半透明 */
     :not([data-theme="cinema"]) .topbar {
         background: transparent;
     }
@@ -722,7 +592,6 @@
         grid-template-columns: repeat(4, 1fr) !important;
     }
 
-    /* 横屏时侧边栏宽度 */
     .sidebar {
         max-width: 240px;
     }
@@ -732,7 +601,6 @@
    触摸设备优化
    ============================================ */
 @media (hover: none) and (pointer: coarse) {
-    /* 增大触摸目标 */
     .nav-item {
         min-height: 44px;
     }
@@ -746,7 +614,6 @@
     }
 
     .task-card {
-        /* 移除 hover 效果，改用 active */
         transition: none;
     }
 
@@ -755,19 +622,16 @@
         opacity: 0.9;
     }
 
-    /* 搜索框增大触摸区域 */
     .topbar-search {
         min-height: 44px;
     }
 
-    /* 移除 hover 状态的 transform */
     .sidebar-toggle:hover,
     .notification-btn:hover,
     .theme-toggle-btn:hover {
         transform: none;
     }
 
-    /* 表单控件增大触摸区域 */
     .form-group input,
     .form-group select,
     .form-group textarea {
