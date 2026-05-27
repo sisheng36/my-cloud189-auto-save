@@ -231,10 +231,10 @@
         font-size: 12px;
     }
 
-    /* 影院模式卡片移动端：双列布局 + 竖向海报卡片等比例缩小展示 */
+    /* 影院模式卡片移动端：单列布局 + 竖向海报卡片，完美适配 iPhone12 Pro 等单屏展示两卡片 */
     [data-theme="cinema"][data-ui-style="media"] #taskTable tbody {
         display: grid !important;
-        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-columns: 1fr !important;
         gap: 12px;
     }
 
@@ -242,37 +242,37 @@
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
-        height: 320px !important;
-        min-height: 320px !important;
-        max-height: 320px !important;
-        padding: 10px !important;
+        height: 350px !important; /* 现有 320px 增加约 10% */
+        min-height: 350px !important;
+        max-height: 350px !important;
+        padding: 12px !important;
         border-radius: 12px !important;
     }
 
-    /* 影院模式添加任务占位卡片：跟随双列高度并等比例缩小 */
+    /* 影院模式添加任务占位卡片：跟随单列高度 */
     [data-theme="cinema"][data-ui-style="media"] .add-task-placeholder {
-        height: 320px !important;
-        min-height: 320px !important;
-        max-height: 320px !important;
+        height: 350px !important;
+        min-height: 350px !important;
+        max-height: 350px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .add-task-placeholder td {
-        padding: 10px !important;
+        padding: 20px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .add-task-placeholder .add-task-icon {
-        width: 48px !important;
-        height: 48px !important;
-        margin-bottom: 10px !important;
+        width: 60px !important;
+        height: 60px !important;
+        margin-bottom: 12px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .add-task-placeholder .add-task-icon i {
-        font-size: 24px !important;
+        font-size: 30px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .add-task-placeholder div {
-        font-size: 11px !important;
-        margin-bottom: 4px !important;
+        font-size: 14px !important;
+        margin-bottom: 6px !important;
     }
 
     .task-card {
@@ -637,60 +637,64 @@
 
     /* 影院模式移动端悬浮简介缩小 */
     [data-theme="cinema"] .media-card-hover-overview {
-        padding: 10px !important;
-        padding-top: 30px !important;
-        padding-bottom: 95px !important;
-        font-size: 11px !important;
-        line-height: 1.4 !important;
-        -webkit-line-clamp: 7 !important;
+        padding: 12px !important;
+        padding-top: 36px !important;
+        padding-bottom: 105px !important;
+        font-size: 12px !important;
+        line-height: 1.5 !important;
+        -webkit-line-clamp: 8 !important;
     }
 
     /* 影院模式移动端底部信息 */
     [data-theme="cinema"] .media-card-bottom {
-        gap: 4px !important;
+        gap: 6px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .media-wall-title {
-        font-size: 13px !important;
+        font-size: 15px !important;
     }
 
     [data-theme="cinema"][data-ui-style="media"] .media-wall-meta {
-        font-size: 10px !important;
-        gap: 4px !important;
+        font-size: 11px !important;
+        gap: 6px !important;
     }
 
     [data-theme="cinema"] .media-progress-text {
-        font-size: 10px !important;
-        gap: 4px !important;
+        font-size: 11px !important;
+        gap: 6px !important;
     }
 
     [data-theme="cinema"] .media-progress-missing {
-        font-size: 10px !important;
-        margin-top: 2px !important;
+        font-size: 11px !important;
+        margin-top: 3px !important;
     }
 
-    /* 影院模式移动端操作按钮 */
+    /* 影院模式移动端操作按钮：右对齐且保持合适间距 */
     [data-theme="cinema"] .media-card-footer {
-        margin-top: 6px !important;
+        margin-top: 8px !important;
+        display: flex !important;
+        justify-content: flex-end !important; /* 卡片底部容器右对齐 */
+        align-items: center !important;
     }
 
     [data-theme="cinema"] .media-tags {
-        display: none !important; /* 移动端屏幕窄，隐藏电影/剧集和账号标签以节省空间 */
+        display: none !important; /* 隐藏标签以释放空间 */
     }
 
     [data-theme="cinema"] .media-actions {
-        width: 100% !important;
-        justify-content: space-between !important;
-        gap: 4px !important;
+        width: auto !important; /* 取消 100% 宽度以避免拉伸 */
+        display: flex !important;
+        justify-content: flex-end !important; /* 按钮右对齐 */
+        gap: 12px !important; /* 按钮间保持合适的紧凑间距 */
     }
 
     [data-theme="cinema"] .media-btn-circle {
-        width: 28px !important;
-        height: 28px !important;
+        width: 32px !important;
+        height: 32px !important;
     }
 
     [data-theme="cinema"] .media-btn-circle i {
-        font-size: 14px !important;
+        font-size: 16px !important;
     }
 
     /* 浮动按钮组 */
