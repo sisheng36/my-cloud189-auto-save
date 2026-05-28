@@ -69,7 +69,7 @@ async function fetchAccounts(updateSelect = false) {
                         <td data-label='别名' onclick="updateAlias(${account.id}, '${account.alias || ''}')">${account.alias || '-'}</td>
                         <td data-label='个人容量'>${formatBytes(account.capacity.cloudCapacityInfo.usedSize) + '/' + formatBytes(account.capacity.cloudCapacityInfo.totalSize)}</td>
                         <td data-label='家庭容量'>${formatBytes(account.capacity.familyCapacityInfo.usedSize) + '/' + formatBytes(account.capacity.familyCapacityInfo.totalSize)}</td>
-                        <td data-label='家庭中转目录' style="cursor: pointer; color: ${account.familyFolderId ? '#22c55e' : '#888'};" onclick="updateFamilyFolder(${account.id}, '${account.familyFolderId || ''}', '${account.familyId || ''}')">${familyFolderDisplay}</td>
+                        <td class="mobile-hide" data-label='家庭中转目录' style="cursor: pointer; color: ${account.familyFolderId ? '#22c55e' : '#888'};" onclick="updateFamilyFolder(${account.id}, '${account.familyFolderId || ''}', '${account.familyId || ''}')">${familyFolderDisplay}</td>
                         <td class='strm-prefix' data-label='媒体目录' style="cursor: pointer;" onclick="updateCloudStrmPrefix(${account.id}, '${account.cloudStrmPrefix || ''}')">${account.cloudStrmPrefix || '-'}</td>
                         <td class='strm-prefix' data-label='本地目录' style="cursor: pointer;" onclick="updateLocalStrmPrefix(${account.id}, '${account.localStrmPrefix || ''}')">${account.localStrmPrefix || '-'}</td>
                     </tr>
