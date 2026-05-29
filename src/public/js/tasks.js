@@ -265,7 +265,8 @@ function renderTaskMediaWall(tasks) {
             <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
                 <td data-label="海报" class="media-wall-poster-cell">
                     <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}" 
-                         style="background-image:url('${poster}') ${tmdbUrl ? '; cursor: pointer;' : ''}"
+                         ${poster ? `data-src="${poster}"` : ''}
+                         ${tmdbUrl ? 'style="cursor:pointer"' : ''}
                          ${tmdbUrl ? `onclick="window.open('${tmdbUrl}', '_blank');"` : ''}>
                         ${poster ? '' : '<span>暂无海报</span>'}
                     </div>
@@ -293,6 +294,20 @@ function renderTaskMediaWall(tasks) {
             </tr>
         `;
     });
+    const posterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const div = entry.target;
+                const src = div.dataset.src;
+                if (src) {
+                    div.style.backgroundImage = `url('${src}')`;
+                    delete div.dataset.src;
+                }
+                posterObserver.unobserve(div);
+            }
+        });
+    }, { rootMargin: '200px' });
+    document.querySelectorAll('#taskTable .media-wall-poster[data-src]').forEach(div => posterObserver.observe(div));
 }
 
 var taskList = []

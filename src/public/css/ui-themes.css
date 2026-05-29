@@ -897,6 +897,22 @@ tbody th:last-child {
     }
 }
 
+/* 暗色模式适配 */
+[data-theme="dark"] .theme-dropdown {
+    background: linear-gradient(180deg, rgba(30, 30, 30, 0.96), rgba(26, 26, 26, 0.94));
+    border-color: rgba(60, 60, 60, 0.6);
+}
+[data-theme="dark"] .theme-toggle-btn {
+    background: linear-gradient(135deg, rgba(30, 30, 30, 0.86), rgba(40, 40, 40, 0.74));
+    border-color: rgba(60, 60, 60, 0.5);
+}
+[data-theme="dark"] .theme-group-label {
+    color: rgba(160, 170, 190, 0.92);
+}
+[data-theme="dark"] .theme-option {
+    color: var(--text-color);
+}
+
 @media (max-width: 768px) {
     .header {
         padding-top: 24px;
