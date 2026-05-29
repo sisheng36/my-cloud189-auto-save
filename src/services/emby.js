@@ -13,7 +13,9 @@ const { Not, IsNull, Like } = require('typeorm');
 // emby接口
 class EmbyService {
     constructor(taskService) {
-        this.enable = ConfigService.getConfigValue('emby.enable');
+        // 兼容旧格式 emby: true 和新格式 emby: { enable: true }
+        const embyConfig = ConfigService.getConfigValue('emby');
+        this.enable = typeof embyConfig === 'object' ? ConfigService.getConfigValue('emby.enable') : embyConfig;
         this.embyUrl = ConfigService.getConfigValue('emby.serverUrl');
         this.embyApiKey = ConfigService.getConfigValue('emby.apiKey');
         this.embyPathReplace = ''

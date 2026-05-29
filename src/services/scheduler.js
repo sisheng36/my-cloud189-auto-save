@@ -41,7 +41,6 @@ class SchedulerService {
                 await taskService.clearRecycleBin(enableAutoClearRecycle, enableAutoClearFamilyRecycle);
             })   
         }
-
         // 4. TV 剧集每日总集数刷新（自动跟踪连载剧集数变动，集数满足时自动完结）
         this.saveDefaultTaskJob('TV剧集总集数刷新', '0 2 * * *', async () => {
             const tasks = await taskRepo.find({ where: { videoType: 'tv' } });
@@ -68,6 +67,8 @@ class SchedulerService {
                         await taskRepo.save(task);
                         logTaskEvent(`[TV完结] ${task.resourceName} 已完结（${task.currentEpisodes}/${task.totalEpisodes}）`);
                     }
+                    // 请求间隔，避免触发 TMDB API 限流
+                    await new Promise(r => setTimeout(r, 500));
                 } catch (e) {
                     logTaskEvent(`[TV更新] ${task.resourceName} 失败: ${e.message}`);
                 }

@@ -186,6 +186,52 @@ class TaskService {
         tasks.push(await this.taskRepo.save(task));
     }
 
+    // 启发式推断视频类型（电影/电视剧），供 renameTask 和 processTask 共用
+    _inferVideoType(resourceName, realFolderName, files) {
+        // 1. 根据保存路径中的关键字判断
+        const savePath = realFolderName || '';
+        const moviePathKeywords = ['/电影/', '/Movies/', '/Movie/', '/movie/', '/影片/'];
+        const tvPathKeywords = ['/电视剧/', '/TV/', '/Tv/', '/tv/', '/剧集/', '/动漫/', '/番剧/',
+                                '/国产剧/', '/外语剧/', '/更新中/', '/纪录片/'];
+        if (moviePathKeywords.some(k => savePath.includes(k))) {
+            logTaskEvent(`[启发式] 保存路径含电影关键字 -> 推断为电影`);
+            return 'movie';
+        }
+        if (tvPathKeywords.some(k => savePath.includes(k))) {
+            logTaskEvent(`[启发式] 保存路径含电视剧关键字 -> 推断为电视剧`);
+            return 'tv';
+        }
+
+        // 2. 根据任务名中的季集标识判断（S01E01、Season、第1季、1x01 等）
+        const hasEpisodePattern = /S\d{1,2}[-_ ]*E\d{1,3}|Season\s*\d+|第\s*\d+\s*[季集话]|\d{1,4}x\d{1,3}/i.test(resourceName || '');
+        if (hasEpisodePattern) {
+            logTaskEvent(`[启发式] 任务名含季集标识 -> 推断为电视剧`);
+            return 'tv';
+        }
+
+        // 3. 根据文件名中的季集信息判断
+        if (files && files.length > 0) {
+            const hasFileEpisodePattern = files.some(f =>
+                /S\d+[-_ ]*E\d+|第\s*\d+\s*[集话]|EP?\d+/i.test(f.name || '')
+            );
+            if (hasFileEpisodePattern) {
+                logTaskEvent(`[启发式] 文件名含季集标识 -> 推断为电视剧`);
+                return 'tv';
+            }
+        }
+
+        // 4. 根据文件数量判断（单文件更可能是电影）
+        if (files && files.length > 0) {
+            const mediaFiles = files.filter(f => !f.isFolder);
+            if (mediaFiles.length === 1) {
+                logTaskEvent(`[启发式] 仅1个媒体文件 -> 推断为电影`);
+                return 'movie';
+            }
+        }
+
+        return null;
+    }
+
     // 提纯影视文件名，移除技术参数和季集信息
     // 例如: "Gimlet Eyes.2026.S01E01.2160p.SDR.25fps.10-bit.HEVC.AAC 2.0@HiveWeb.mp4" -> "Gimlet Eyes"
     // 例如: "Throne.of.Seal.S01E198.2160p.mkv" -> "Throne of Seal"
@@ -324,40 +370,10 @@ class TaskService {
             let inferredType = null; // 启发式推断的类型，优先级低于用户指定
             // 1. 根据保存路径中的关键字判断（仅当用户未指定类型时）
             if (!taskDto?.videoType) {
-                const savePath = taskDto?.realFolderName || '';
-                const moviePathKeywords = ['/电影/', '/Movies/', '/Movie/', '/movie/', '/影片/'];
-                const tvPathKeywords = ['/电视剧/', '/TV/', '/Tv/', '/tv/', '/剧集/', '/动漫/', '/番剧/'];
-                if (moviePathKeywords.some(k => savePath.includes(k))) {
-                    inferredType = 'movie';
-                    logTaskEvent(`[AI重命名] 启发式判断：保存路径含电影关键字 -> 推断为电影`);
-                } else if (tvPathKeywords.some(k => savePath.includes(k))) {
-                    inferredType = 'tv';
-                    logTaskEvent(`[AI重命名] 启发式判断：保存路径含电视剧关键字 -> 推断为电视剧`);
+                inferredType = this._inferVideoType(taskDto?.resourceName || taskDto?.shareFolderName, taskDto?.realFolderName, files);
+                if (inferredType) {
+                    logTaskEvent(`[AI重命名] 启发式判断最终结果: ${inferredType === 'movie' ? '电影' : '电视剧'}`);
                 }
-            }
-
-            // 2. 根据文件名中的季集信息判断（有季集标识则是电视剧）
-            if (!inferredType && files && files.length > 0) {
-                const hasEpisodePattern = files.some(f =>
-                    /S\d+[-_ ]*E\d+|第\s*\d+\s*[集话]|EP?\d+/i.test(f.name || '')
-                );
-                if (hasEpisodePattern) {
-                    inferredType = 'tv';
-                    logTaskEvent(`[AI重命名] 启发式判断：文件名含季集标识 -> 推断为电视剧`);
-                }
-            }
-
-            // 3. 根据文件数量判断（单文件更可能是电影）
-            if (!inferredType && files && files.length > 0) {
-                const mediaFiles = files.filter(f => !f.isFolder);
-                if (mediaFiles.length === 1) {
-                    inferredType = 'movie';
-                    logTaskEvent(`[AI重命名] 启发式判断：仅1个媒体文件 -> 推断为电影`);
-                }
-            }
-
-            if (inferredType) {
-                logTaskEvent(`[AI重命名] 启发式判断最终结果: ${inferredType === 'movie' ? '电影' : '电视剧'}`);
             }
 
             try {
@@ -415,6 +431,21 @@ class TaskService {
                             if (detail.releaseDate) year = parseInt(detail.releaseDate.substring(0, 4)) || year;
                             tmdbParsed = true;
                             logTaskEvent(`[AI重命名] TMDB ID ${extractedTmdbId} 匹配成功: 【${tmdbName} (${year})】，类型: ${tmdbType}`);
+                            // 自动填充元数据到任务对象
+                            if (taskDto) {
+                                taskDto.tmdbId = String(detail.id || extractedTmdbId);
+                                taskDto.tmdbTitle = detail.title;
+                                taskDto.videoType = tmdbType;
+                                taskDto.tmdbContent = JSON.stringify(detail);
+                                if (tmdbType === 'tv' && detail.seasons) {
+                                    const n = taskDto.shareFolderName || taskDto.resourceName || '';
+                                    const m = n.match(/(?:Season|S|第)\s*(\d+)/i);
+                                    const seasonNum = (m ? parseInt(m[1]) : null)
+                                        || Math.max(...detail.seasons.filter(s => s.season_number > 0).map(s => s.season_number), 0);
+                                    const s = detail.seasons.find(s => s.season_number === seasonNum);
+                                    if (s?.episode_count > 0) taskDto.totalEpisodes = s.episode_count;
+                                }
+                            }
                         } else {
                             logTaskEvent(`[AI重命名] TMDB ID ${extractedTmdbId} 查询失败: 未找到有效信息，将回退标题搜索`);
                         }
@@ -440,14 +471,6 @@ class TaskService {
                                     taskDto.tmdbTitle = movieResult.title;
                                     taskDto.videoType = 'movie';
                                     taskDto.tmdbContent = JSON.stringify(movieResult);
-                                    if (movieResult.type === 'tv' && movieResult.seasons) {
-                                        const n = taskDto.shareFolderName || taskDto.resourceName || '';
-                                        const m = n.match(/(?:Season|S|第)\s*(\d+)/i);
-                                        const seasonNum = (m ? parseInt(m[1]) : null)
-                                            || Math.max(...movieResult.seasons.filter(s => s.season_number > 0).map(s => s.season_number), 0);
-                                        const s = movieResult.seasons.find(s => s.season_number === seasonNum);
-                                        if (s?.episode_count > 0) taskDto.totalEpisodes = s.episode_count;
-                                    }
                                 }
                             }
                         } else if (taskDto?.videoType === 'tv') {
@@ -993,31 +1016,13 @@ class TaskService {
                     const extractedTmdbId = parseInt(tmdbIdMatch[1]);
                     task.tmdbId = extractedTmdbId;
                     logTaskEvent(`[任务执行] 从任务名提取到 TMDB ID: ${extractedTmdbId}，已更新到任务对象`);
-                    // 如果未指定 videoType，尝试通过 TMDB API 判断类型
+                    // 如果未指定 videoType，使用启发式推断决定查询顺序
                     const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
                     if (tmdbApiKey && !task.videoType) {
                         try {
-                            // 1. 根据保存路径启发式推断
-                            const savePath = task.realFolderName || '';
-                            const movieKeywords = ['/电影/', '/Movies/', '/movie/', '/影片/'];
-                            const tvKeywords = ['/电视剧/', '/TV/', '/tv/', '/剧集/', '/动漫/', '/番剧/',
-                                                '/国产剧/', '/外语剧/', '/更新中/', '/纪录片/'];
-                            let inferredType = null;
-                            if (movieKeywords.some(k => savePath.includes(k))) {
-                                inferredType = 'movie';
-                            } else if (tvKeywords.some(k => savePath.includes(k))) {
-                                inferredType = 'tv';
-                            }
+                            // 启发式推断类型
+                            const inferredType = this._inferVideoType(task.resourceName, task.realFolderName, null);
 
-                            // 2. 根据任务名中的季集标识推断（S01E01、Season、第1季等）
-                            if (!inferredType) {
-                                const hasEpisodePattern = /S\d{1,2}[-_ ]*E\d{1,3}|Season\s*\d+|第\s*\d+\s*[季集话]|\d{1,4}x\d{1,3}/i.test(task.resourceName || '');
-                                if (hasEpisodePattern) {
-                                    inferredType = 'tv';
-                                }
-                            }
-
-                            // 3. 按推断结果决定查询顺序
                             const tmdbService = new TMDBService();
                             let movieDetail = null, tvDetail = null;
                             if (inferredType === 'movie') {
@@ -1101,6 +1106,46 @@ class TaskService {
                     }
 
                     await this.taskRepo.save(task);
+                }
+            }
+
+            // ====== 任务名中未找到 TMDB ID 时通过标题搜索补全 ======
+            if (!task.tmdbId && !task.videoType && task.resourceName) {
+                const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+                if (tmdbApiKey) {
+                    try {
+                        const baseName = this._extractCleanTitle(task.resourceName);
+                        const year = this._extractYear(task.resourceName);
+                        logTaskEvent(`[任务执行] 未发现 TMDB ID，尝试标题搜索: "${baseName}"`);
+
+                        const inferredType = this._inferVideoType(task.resourceName, task.realFolderName, null) || 'tv';
+                        const tmdbService = new TMDBService();
+                        let detail = null;
+                        if (inferredType === 'movie') {
+                            const sr = await tmdbService.searchMovie(baseName, year ? String(year) : '');
+                            if (sr?.id) detail = await tmdbService.getMovieDetails(sr.id);
+                            if (!detail) {
+                                const sr2 = await tmdbService.searchTV(baseName, year ? String(year) : '');
+                                if (sr2?.id) detail = await tmdbService.getTVDetails(sr2.id);
+                            }
+                        } else {
+                            const sr = await tmdbService.searchTV(baseName, year ? String(year) : '');
+                            if (sr?.id) detail = await tmdbService.getTVDetails(sr.id);
+                            if (!detail) {
+                                const sr2 = await tmdbService.searchMovie(baseName, year ? String(year) : '');
+                                if (sr2?.id) detail = await tmdbService.getMovieDetails(sr2.id);
+                            }
+                        }
+
+                        if (detail?.title) {
+                            task.tmdbId = String(detail.id);
+                            task.videoType = detail.type || inferredType;
+                            task.tmdbTitle = detail.title;
+                            logTaskEvent(`[任务执行] TMDB 标题搜索匹配成功: ${detail.title}（${detail.id}），类型: ${task.videoType}`);
+                        }
+                    } catch (e) {
+                        logTaskEvent(`[任务执行] TMDB 标题搜索失败: ${e.message}`);
+                    }
                 }
             }
 
@@ -2013,7 +2058,6 @@ class TaskService {
                 task.status = 'completed';
                 logTaskEvent(`电影 ${task.resourceName} 已完结，不再占用定时资源`);
             }
-
             // 检查是否达到总数
             if (task.totalEpisodes && task.currentEpisodes >= task.totalEpisodes) {
                 task.status = 'completed';

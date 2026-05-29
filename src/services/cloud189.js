@@ -23,8 +23,10 @@ class Cloud189Service {
             token: new FileTokenStore(`data/${account.username}.json`)
         }
         if (!account.password && account.cookies) {
-            _options.ssonCookie = account.cookies
-            _options.password = null   
+            // 从完整 Cookie 字符串中提取 COOKIE_LOGIN_USER（天翼云当前认证 cookie）
+            const match = account.cookies.match(/COOKIE_LOGIN_USER=([^;]+)/i);
+            _options.ssonCookie = match ? match[1] : account.cookies;
+            _options.password = null
         }
         _options.proxy = ProxyUtil.getProxy('cloud189')
         this.client = new CloudClient(_options);
