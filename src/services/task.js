@@ -1064,17 +1064,8 @@ class TaskService {
                             const year = this._extractYear(task.resourceName);
                             logTaskEvent(`[任务执行] 未发现 TMDB ID，尝试标题搜索: "${baseName}"`);
 
-                            const savePath = task.realFolderName || '';
-                            let inferredType = 'tv';
-                            if (['/电影/', '/Movies/', '/movie/', '/影片/'].some(k => savePath.includes(k))) {
-                                inferredType = 'movie';
-                            } else if (['/电视剧/', '/TV/', '/tv/', '/剧集/', '/动漫/', '/番剧/',
-                                        '/国产剧/', '/外语剧/', '/更新中/', '/纪录片/'].some(k => savePath.includes(k))) {
-                                inferredType = 'tv';
-                            }
-                            if (!inferredType && /S\d{1,2}[-_ ]*E\d{1,3}|Season\s*\d+|第\s*\d+\s*[季集话]|\d{1,4}x\d{1,3}/i.test(task.resourceName || '')) {
-                                inferredType = 'tv';
-                            }
+                            // 统一使用启发式方法推断视频类型
+                            const inferredType = this._inferVideoType(task.resourceName, task.realFolderName, null) || 'tv';
 
                             const tmdbService = new TMDBService();
                             let detail = null;
