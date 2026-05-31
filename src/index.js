@@ -595,8 +595,16 @@ AppDataSource.initialize().then(async () => {
                         task.tmdbTitle = detail.title;
                     }
                     // 更新总集数（剧集类型）
-                    if (videoType === 'tv' && detail.totalEpisodes) {
-                        task.totalEpisodes = detail.totalEpisodes;
+                    if (videoType === 'tv' && detail.seasons) {
+                        const taskName = task.shareFolderName || task.resourceName || '';
+                        const seasonMatch = taskName.match(/(?:Season|S)\.?\s*(\d+)|第\.?\s*(\d+)\.?\s*季/i);
+                        const taskSeason = task.manualSeason != null
+                            ? task.manualSeason
+                            : (seasonMatch ? parseInt(seasonMatch[1] || seasonMatch[2]) : null);
+                        const seasonInfo = detail.seasons.find(s => s.season_number === taskSeason);
+                        if (seasonInfo && seasonInfo.episode_count > 0) {
+                            task.totalEpisodes = seasonInfo.episode_count;
+                        }
                     }
                     // 保存完整的 TMDB 内容
                     task.tmdbContent = JSON.stringify(detail);
@@ -635,7 +643,7 @@ AppDataSource.initialize().then(async () => {
 
                         sibling.tmdbId = tmdbId;
                         sibling.videoType = videoType;
-                        if (title) sibling.tmdbTitle = title;
+                        sibling.tmdbTitle = title || task.tmdbTitle || '';
                         sibling.manualSeason = siblingSeason;
                         sibling.manualTmdbBound = true;
 
