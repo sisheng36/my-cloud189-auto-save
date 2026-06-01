@@ -196,6 +196,30 @@ AppDataSource.initialize().then(async () => {
         res.json({ success: true, data: accounts });
     });
 
+    // 强制刷新账号容量缓存
+    app.post('/api/accounts/refresh-capacity', async (req, res) => {
+        try {
+            const accounts = await accountRepo.find();
+            let refreshed = 0;
+            for (const account of accounts) {
+                if (account.username.startsWith('n_')) continue;
+                try {
+                    const cloud189 = Cloud189Service.getInstance(account);
+                    const capacity = await cloud189.getUserSizeInfo();
+                    if (capacity && capacity.res_code == 0) {
+                        refreshed++;
+                    }
+                } catch (e) {
+                    console.error(`[刷新容量] 账号 ${account.username} 刷新失败:`, e.message);
+                }
+            }
+            res.json({ success: true, message: `已刷新 ${refreshed} 个账号的容量信息` });
+        } catch (error) {
+            console.error('[刷新容量] 刷新失败:', error);
+            res.json({ success: false, error: error.message });
+        }
+    });
+
     // 扫码登录 - 获取二维码
     app.get('/api/accounts/qr-code', async (req, res) => {
         try {

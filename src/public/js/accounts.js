@@ -1009,3 +1009,54 @@ function refreshQRCode(e) {
     }
     startQRCodeFlow();
 }
+
+// 刷新账号容量缓存
+async function refreshCapacity() {
+    const btn = document.getElementById('refreshCapacityBtn');
+    const originalText = btn.innerHTML;
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner"></i> 刷新中...';
+
+        const response = await fetch('/api/accounts/refresh-capacity', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            // 刷新成功后重新加载账号列表
+            await fetchAccounts();
+            // 显示成功提示
+            showToast(data.message, 'success');
+        } else {
+            showToast('刷新失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        console.error('刷新容量失败:', e);
+        showToast('刷新失败: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+    toast.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#6366f1';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
