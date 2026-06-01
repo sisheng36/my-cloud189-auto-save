@@ -8,6 +8,8 @@ const { MessageUtil } = require('./services/message');
 const { CacheManager } = require('./services/CacheManager')
 const taskCacheManager = require('./services/TaskCacheManager');
 const ConfigService = require('./services/ConfigService');
+const ProxyUtil = require('./utils/ProxyUtil');
+const { CloudAuthClient } = require('../vender/cloud189-sdk/dist');
 const packageJson = require('../package.json');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
@@ -169,7 +171,7 @@ AppDataSource.initialize().then(async () => {
         const accounts = await accountRepo.find();
         // 获取容量
         for (const account of accounts) {
-            
+
             account.capacity = {
                 cloudCapacityInfo: {usedSize:0,totalSize:0},
                 familyCapacityInfo: {usedSize:0,totalSize:0}
@@ -188,6 +190,111 @@ AppDataSource.initialize().then(async () => {
             account.username = account.username.replace(/(.{3}).*(.{4})/, '$1****$2');
         }
         res.json({ success: true, data: accounts });
+    });
+
+    // 扫码登录 - 获取二维码
+    app.get('/api/accounts/qr-code', async (req, res) => {
+        try {
+            const authClient = new CloudAuthClient();
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            if (proxyUrl) {
+                authClient.setProxy(proxyUrl);
+            }
+            const qrData = await authClient.getQRCode();
+            // 拼接正确的二维码图片获取地址
+            const qrImageUrl = `https://open.e.189.cn/api/logbox/oauth2/image.do?uuid=${encodeURIComponent(qrData.uuid)}&REQID=${qrData.reqId}`;
+            res.json({
+                success: true,
+                data: {
+                    ...qrData,
+                    qrUrl: qrImageUrl
+                }
+            });
+        } catch (error) {
+            console.error('[扫码登录] 获取二维码失败:', error);
+            res.json({ success: false, error: error.message });
+        }
+    });
+
+    // 扫码登录 - 检查状态并完成登录
+    app.post('/api/accounts/qr-status', async (req, res) => {
+        try {
+            const authClient = new CloudAuthClient();
+            const proxyUrl = ProxyUtil.getProxy('cloud189');
+            if (proxyUrl) {
+                authClient.setProxy(proxyUrl);
+            }
+            const qrStatus = await authClient.checkQRCodeStatus(req.body);
+
+            // 状态：0=成功, -106=等待扫码, -11002=已扫码待确认, -11001=过期
+            if (qrStatus.status === 0) {
+                const loginToken = await authClient.getSessionForPC({ redirectURL: qrStatus.redirectUrl });
+                const loginName = loginToken.loginName;
+
+                // 保存 Token 到 file 以便 FileTokenStore 能够读取
+                const tokenData = {
+                    accessToken: loginToken.accessToken,
+                    refreshToken: loginToken.refreshToken,
+                    expiresIn: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).getTime()
+                };
+
+                const dataDir = path.join(process.cwd(), 'data');
+                try {
+                    const fsSync = require('fs');
+                    if (!fsSync.existsSync(dataDir)) {
+                        fsSync.mkdirSync(dataDir, { recursive: true });
+                    }
+                } catch (_) {}
+
+                const tokenFilePath = path.join(dataDir, `${loginName}.json`);
+                await fs.writeFile(tokenFilePath, JSON.stringify(tokenData), 'utf-8');
+
+                // 数据库记录
+                let account = await accountRepo.findOne({ where: { username: loginName } });
+                if (!account) {
+                    account = accountRepo.create({
+                        username: loginName,
+                        password: '',
+                        cookies: ''
+                    });
+                }
+
+                // 尝试检测家庭组
+                const cloud189 = Cloud189Service.getInstance(account);
+                try {
+                    const familyInfo = await cloud189.getFamilyInfo();
+                    if (familyInfo && familyInfo.familyId) {
+                        account.familyId = String(familyInfo.familyId);
+                        console.log(`[账号] 扫码登录检测家庭组成功: ${account.username} -> familyId: ${account.familyId}`);
+                    }
+                } catch (e) {
+                    console.log(`[账号] 扫码登录获取家庭信息失败: ${e.message}`);
+                }
+
+                await accountRepo.save(account);
+
+                res.json({
+                    success: true,
+                    status: 0,
+                    data: {
+                        accountId: account.id,
+                        username: loginName,
+                        familyId: account.familyId
+                    }
+                });
+            } else {
+                res.json({
+                    success: true,
+                    status: qrStatus.status,
+                    message: qrStatus.status === -106 ? '等待扫码' :
+                             qrStatus.status === -11002 ? '已扫码，请在手机端确认' :
+                             qrStatus.status === -11001 ? '二维码已过期' : '未知状态'
+                });
+            }
+        } catch (error) {
+            console.error('[扫码登录] 检查状态失败:', error);
+            res.json({ success: false, error: error.message });
+        }
     });
 
     app.post('/api/accounts', async (req, res) => {
