@@ -7,9 +7,11 @@ WORKDIR /home
 # 复制源码
 COPY . .
 
-# 安装cloud189-sdk依赖
+# 安装cloud189-sdk依赖并打补丁支持 COOKIE_LOGIN_USER
 RUN cd vender/cloud189-sdk && \
     yarn install && \
+    # 修改 loginBySsoCooike 方法支持 COOKIE_LOGIN_USER 格式
+    sed -i "s/Cookie: \`SSON=\${cookie}\`/Cookie: cookie.includes('=') ? cookie : \`COOKIE_LOGIN_USER=\${cookie}\`/g" src/CloudClient.ts && \
     yarn build
 
 # 安装项目依赖
