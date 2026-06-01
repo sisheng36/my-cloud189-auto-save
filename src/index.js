@@ -631,10 +631,11 @@ AppDataSource.initialize().then(async () => {
             task.lastSavedDisplayText = task.tmdbTitle || title;
 
             // 从 TMDB API 获取更多信息更新任务卡片
+            let detail;
             try {
                 const { TMDBService } = require('./services/tmdb');
                 const tmdbService = new TMDBService();
-                const detail = videoType === 'movie'
+                detail = videoType === 'movie'
                     ? await tmdbService.getMovieDetails(tmdbId)
                     : await tmdbService.getTVDetails(tmdbId);
                 
@@ -646,6 +647,18 @@ AppDataSource.initialize().then(async () => {
                     // 更新总集数（剧集类型）
                     if (videoType === 'tv' && detail.totalEpisodes) {
                         task.totalEpisodes = detail.totalEpisodes;
+                    }
+                    // 更新总集数（具体季的集数，剧集类型）
+                    if (videoType === 'tv' && detail.seasons) {
+                        const taskName = task.shareFolderName || task.resourceName || '';
+                        const seasonMatch = taskName.match(/(?:Season|S)\.?\s*(\d+)|第\.?\s*(\d+)\.?\s*季/i);
+                        const taskSeason = task.manualSeason != null
+                            ? task.manualSeason
+                            : (seasonMatch ? parseInt(seasonMatch[1] || seasonMatch[2]) : null);
+                        const seasonInfo = detail.seasons.find(s => s.season_number === taskSeason);
+                        if (seasonInfo && seasonInfo.episode_count > 0) {
+                            task.totalEpisodes = seasonInfo.episode_count;
+                        }
                     }
                     // 保存完整的 TMDB 内容
                     task.tmdbContent = JSON.stringify(detail);
@@ -659,6 +672,96 @@ AppDataSource.initialize().then(async () => {
             // 清缓存会导致任务重新执行，可能误删文件
             
             await taskRepo.save(task);
+
+            // 级联同步TMDB绑定到兄弟任务（同一分享链接下的其他季）
+            if (videoType === 'tv' && task.realRootFolderId) {
+                try {
+                    const siblings = await taskRepo.find({
+                        where: { realRootFolderId: task.realRootFolderId },
+                        relations: { account: true },
+                        select: {
+                            account: {
+                                username: true, localStrmPrefix: true, cloudStrmPrefix: true, embyPathReplace: true
+                            }
+                        }
+                    });
+                    for (const sibling of siblings) {
+                        if (sibling.id === taskId) continue;
+                        if (sibling.manualTmdbBound || sibling.tmdbId) {
+                            logTaskEvent(`[TMDB级联] 兄弟任务[${sibling.resourceName}]已有TMDB绑定，跳过`);
+                            continue;
+                        }
+                        const name = sibling.shareFolderName || sibling.resourceName || '';
+                        const seasonMatch = name.match(/(?:Season|S)\.?\s*(\d+)|第\.?\s*(\d+)\.?\s*季/i);
+                        const siblingSeason = seasonMatch ? parseInt(seasonMatch[1] || seasonMatch[2]) : null;
+
+                        sibling.tmdbId = tmdbId;
+                        sibling.videoType = videoType;
+                        sibling.tmdbTitle = title || task.tmdbTitle || '';
+                        sibling.manualSeason = siblingSeason;
+                        sibling.manualTmdbBound = true;
+
+                        if (detail && detail.seasons) {
+                            const seasonInfo = detail.seasons.find(s => s.season_number === siblingSeason);
+                            if (seasonInfo && seasonInfo.episode_count > 0) {
+                                sibling.totalEpisodes = seasonInfo.episode_count;
+                            }
+                        }
+
+                        if (task.tmdbContent) {
+                            sibling.tmdbContent = task.tmdbContent;
+                        }
+
+                        await taskRepo.save(sibling);
+                        logTaskEvent(`[TMDB级联] 已同步TMDB绑定到兄弟任务: ${sibling.resourceName} (第${siblingSeason || '?'}季)`);
+
+                        const cascadeRename = async () => {
+                            try {
+                                const account = sibling.account;
+                                const cloud189 = Cloud189Service.getInstance(account);
+                                logTaskEvent(`[TMDB级联] 触发兄弟任务重命名: ${sibling.resourceName}`);
+                                const result = await taskService.autoRename(cloud189, sibling, { skipDeletion: true });
+
+                                let msg = '';
+                                if (result && result.newFiles && result.newFiles.length > 0) {
+                                    // 确保路径以 / 开头（SmartStrm webhook 要求）
+                                    let folderPath = sibling.realFolderName || sibling.realFolderId || '';
+                                    if (folderPath && !folderPath.startsWith('/')) {
+                                        folderPath = '/' + folderPath;
+                                    }
+                                    msg = `✅《${sibling.resourceName}》级联绑定TMDB并重命名完成\n已处理 ${result.newFiles.length} 个文件`;
+                                    if (folderPath) {
+                                        msg += `\n📁 ${folderPath}`;
+                                    }
+                                    if (result.renameMessages && result.renameMessages.length > 0) {
+                                        const details = result.renameMessages.slice(0, 10);
+                                        msg += `\n${details.join('\n')}`;
+                                        if (result.renameMessages.length > 10) {
+                                            msg += `\n└─ ... 等${result.renameMessages.length}个文件`;
+                                        }
+                                    }
+                                    messageUtil.sendMessage(msg);
+                                    messageUtil.sendWebhookMessage(msg);
+
+                                    // 重命名后触发 Emby 扫库
+                                    const { EmbyService } = require('./services/emby');
+                                    const embyService = new EmbyService();
+                                    try {
+                                        await embyService.notify(sibling);
+                                    } catch (e) {
+                                        logTaskEvent(`[TMDB级联] Emby扫库失败: ${e.message}`);
+                                    }
+                                }
+                            } catch (e) {
+                                logTaskEvent(`[TMDB级联] 兄弟任务[${sibling.resourceName}]重命名失败: ${e.message}`);
+                            }
+                        };
+                        cascadeRename().catch(e => logTaskEvent(`[TMDB级联] 兄弟任务异步重命名失败: ${e.message}`));
+                    }
+                } catch (e) {
+                    logTaskEvent(`[TMDB级联] 级联同步失败: ${e.message}`);
+                }
+            }
 
             // 自动触发重命名（后台异步执行，不阻塞响应）
             const renameTask = async () => {
