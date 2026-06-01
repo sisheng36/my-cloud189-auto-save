@@ -64,8 +64,20 @@
 #accountTable td:first-child {
     padding: 12px 0;
     display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+#accountTable td:first-child .default-star {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* 移动端隐藏操作类 */
+#accountTable td.strm-prefix,
+#accountTable td.mobile-hide {
+    display: none;
 }
 
 #taskTable .ellipsis,

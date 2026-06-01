@@ -368,6 +368,7 @@ class TaskService {
 
             // ====== 启发式判断视频类型（在 TMDB 搜索前分析资源特征） ======
             let inferredType = null; // 启发式推断的类型，优先级低于用户指定
+            // 1. 根据保存路径中的关键字判断（仅当用户未指定类型时）
             if (!taskDto?.videoType) {
                 inferredType = this._inferVideoType(taskDto?.resourceName || taskDto?.shareFolderName, taskDto?.realFolderName, files);
                 if (inferredType) {
@@ -1053,6 +1054,45 @@ class TaskService {
                             }
                         } catch (e) {
                             logTaskEvent(`[任务执行] TMDB ID ${extractedTmdbId} 类型检测失败: ${e.message}`);
+                        }
+                    }
+
+                    // ====== 4. 未找到 TMDB ID 时通过标题搜索补全 ======
+                    if (!task.tmdbId && tmdbApiKey && !task.videoType && task.resourceName) {
+                        try {
+                            const baseName = this._extractCleanTitle(task.resourceName);
+                            const year = this._extractYear(task.resourceName);
+                            logTaskEvent(`[任务执行] 未发现 TMDB ID，尝试标题搜索: "${baseName}"`);
+
+                            // 统一使用启发式方法推断视频类型
+                            const inferredType = this._inferVideoType(task.resourceName, task.realFolderName, null) || 'tv';
+
+                            const tmdbService = new TMDBService();
+                            let detail = null;
+                            if (inferredType === 'movie') {
+                                const sr = await tmdbService.searchMovie(baseName, year ? String(year) : '');
+                                if (sr?.id) detail = await tmdbService.getMovieDetails(sr.id);
+                                if (!detail) {
+                                    const sr2 = await tmdbService.searchTV(baseName, year ? String(year) : '');
+                                    if (sr2?.id) detail = await tmdbService.getTVDetails(sr2.id);
+                                }
+                            } else {
+                                const sr = await tmdbService.searchTV(baseName, year ? String(year) : '');
+                                if (sr?.id) detail = await tmdbService.getTVDetails(sr.id);
+                                if (!detail) {
+                                    const sr2 = await tmdbService.searchMovie(baseName, year ? String(year) : '');
+                                    if (sr2?.id) detail = await tmdbService.getMovieDetails(sr2.id);
+                                }
+                            }
+
+                            if (detail?.title) {
+                                task.tmdbId = String(detail.id);
+                                task.videoType = detail.type || inferredType;
+                                task.tmdbTitle = detail.title;
+                                logTaskEvent(`[任务执行] TMDB 标题搜索匹配成功: ${detail.title}（${detail.id}），类型: ${task.videoType}`);
+                            }
+                        } catch (e) {
+                            logTaskEvent(`[任务执行] TMDB 标题搜索失败: ${e.message}`);
                         }
                     }
 
