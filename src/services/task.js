@@ -3589,6 +3589,60 @@ class TaskService {
                 return null;
             }
 
+            // ====== 优先从文件名中提取 TMDB ID（比标题搜索更准确） ======
+            const tmdbIdMatch = fileName.match(/(?:^|[\[{(\s_/])tmdb(?:id)?[-=:_ ](\d+)(?:$|[\]})\s_/])/i);
+            if (tmdbIdMatch) {
+                const extractedTmdbId = parseInt(tmdbIdMatch[1]);
+                console.log(`[TMDB识别] 从文件名提取到 TMDB ID: ${extractedTmdbId}`);
+
+                try {
+                    const tmdbService = new TMDBService();
+                    // 启发式推断类型决定查询顺序
+                    const inferredType = this._inferVideoType(fileName, null, null);
+                    let detail = null;
+                    let detailType = null;
+
+                    if (inferredType === 'movie') {
+                        detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                        if (detail?.title) detailType = 'movie';
+                        else {
+                            detail = await tmdbService.getTVDetails(extractedTmdbId);
+                            if (detail?.title) detailType = 'tv';
+                        }
+                    } else {
+                        detail = await tmdbService.getTVDetails(extractedTmdbId);
+                        if (detail?.title) detailType = 'tv';
+                        else {
+                            detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                            if (detail?.title) detailType = 'movie';
+                        }
+                    }
+
+                    if (detail && detail.title) {
+                        const resultYear = detail.releaseDate ? parseInt(detail.releaseDate.substring(0, 4)) : null;
+                        const standardName = resultYear ? `${detail.title} (${resultYear})` : detail.title;
+
+                        console.log(`[TMDB识别] ✅ TMDB ID ${extractedTmdbId} 匹配成功: "${detail.title}" (${resultYear || '未知年'}), 类型: ${detailType}`);
+
+                        return {
+                            id: extractedTmdbId,
+                            type: detailType,
+                            title: detail.title,
+                            originalTitle: detail.originalTitle,
+                            year: resultYear,
+                            standardName: standardName,
+                            similarity: '1.00',
+                            score: 100
+                        };
+                    } else {
+                        console.log(`[TMDB识别] ⚠️ TMDB ID ${extractedTmdbId} 查询失败: 未找到有效信息，将回退标题搜索`);
+                    }
+                } catch (error) {
+                    console.log(`[TMDB识别] ⚠️ TMDB ID ${extractedTmdbId} 查询异常: ${error.message}`);
+                }
+            }
+
+            // 回退到标题搜索
             const baseName = this._extractCleanTitle(fileName);
             const year = this._extractYear(fileName);
 
@@ -3596,7 +3650,7 @@ class TaskService {
             const typesToTry = ['tv', 'movie'];
 
             for (const type of typesToTry) {
-                const result = type === 'tv' 
+                const result = type === 'tv'
                     ? await tmdbService.searchTV(baseName, year ? year.toString() : '')
                     : await tmdbService.searchMovie(baseName, year ? year.toString() : '');
 
