@@ -2411,14 +2411,6 @@ class TaskService {
             where: { id: taskId },
             relations: {
                 account: true
-            },
-            select: {
-                account: {
-                    username: true,
-                    localStrmPrefix: true,
-                    cloudStrmPrefix: true,
-                    embyPathReplace: true
-                }
             }
         });
         if (!task) throw new Error('任务不存在');
