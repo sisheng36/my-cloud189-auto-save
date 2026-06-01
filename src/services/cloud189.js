@@ -714,67 +714,19 @@ class Cloud189Service {
         try {
             logTaskEvent(`[家庭中转] 创建家庭目录: ${folderName}, 父目录ID: ${parentFolderId || '根目录'}`);
 
-            // 家庭接口需要手动签名（SDK 不支持家庭接口签名）
-            const accessToken = await this.client.getAccessToken();
-            const timestamp = Date.now();
-
-            // 构建签名参数
-            const formParams = {
+            // 直接使用 SDK 客户端的 createFolder 方法，它内置了对家庭空间创建目录及签名的支持
+            const result = await this.client.createFolder({
                 familyId: String(familyId),
-                targetParentId: String(parentFolderId || ''),  // 家庭API使用 targetParentId
-                newFileName: folderName  // 家庭API使用 newFileName
-            };
+                parentFolderId: String(parentFolderId || ''),
+                folderName: folderName
+            });
 
-            // 按字母顺序排序参数
-            const sortedParams = Object.entries(formParams).sort((a, b) => a[0].localeCompare(b[0]));
-            const signText = [
-                `AccessToken=${accessToken}`,
-                `Timestamp=${timestamp}`
-            ].concat(sortedParams.map(([k, v]) => `${k}=${v}`)).join('&');
-            const signature = crypto.createHash('md5').update(signText).digest('hex').toLowerCase();
-
-            // 构建请求头
-            const headers = {
-                'Accept': 'application/json;charset=UTF-8',
-                'Sign-Type': '1',
-                'Signature': signature,
-                'Timestamp': String(timestamp),
-                'AccessToken': accessToken,
-                'Content-Type': 'application/x-www-form-urlencoded'
-            };
-
-            // 构建请求 URL
-            const url = 'https://cloud.189.cn/api/open/family/file/createFolder.action';
-
-            // 构建请求体
-            const body = Object.entries(formParams).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-
-            const got = require('got');
-            const proxyUrl = ProxyUtil.getProxy('cloud189');
-            const opts = { headers, method: 'POST', body };
-            if (proxyUrl) {
-                const { HttpsProxyAgent } = require('https-proxy-agent');
-                opts.agent = { https: new HttpsProxyAgent(proxyUrl) };
-            }
-
-            const result = await got(url, opts).json();
-
-            // request 返回 null 表示请求失败
-            if (!result) {
-                logTaskEvent(`[家庭中转] 创建家庭目录失败: 请求返回 null`);
-                return { success: false, message: '请求失败' };
-            }
-            if (result?.res_code !== undefined && result.res_code !== 0) {
-                logTaskEvent(`[家庭中转] 创建家庭目录失败: ${result.res_message || JSON.stringify(result)}`);
-                return { success: false, message: result.res_message || '创建目录失败' };
-            }
-            const folderId = result?.id || result?.folderId || result?.data?.folderId;
-            if (!folderId) {
+            if (!result || !result.id) {
                 logTaskEvent(`[家庭中转] 创建家庭目录失败: 未获取到目录ID`);
                 return { success: false, message: '未获取到目录ID' };
             }
-            logTaskEvent(`[家庭中转] 家庭目录创建成功: ${folderName}, ID: ${folderId}`);
-            return { success: true, folderId: String(folderId) };
+            logTaskEvent(`[家庭中转] 家庭目录创建成功: ${folderName}, ID: ${result.id}`);
+            return { success: true, folderId: String(result.id) };
         } catch (error) {
             logTaskEvent(`[家庭中转] 创建家庭目录失败: ${error.message}`);
             return { success: false, message: error.message };
