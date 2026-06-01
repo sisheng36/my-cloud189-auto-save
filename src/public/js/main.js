@@ -112,8 +112,8 @@ async function loadStorageSummary() {
         }
 
         const data = summaryData.data;
-        const cloudTotal = data.cloud.total || 0; // KB
-        const cloudUsed = data.cloud.used || 0;   // KB
+        const cloudTotal = data.cloud.total || 0; // 字节
+        const cloudUsed = data.cloud.used || 0;   // 字节
         
         if (cloudTotal === 0) {
             storageCard.style.display = 'none';
@@ -122,9 +122,9 @@ async function loadStorageSummary() {
 
         storageCard.style.display = 'block';
 
-        // 统一使用 TB 单位显示
-        const formatSize = (kbValue) => {
-            const tb = kbValue / (1024 * 1024 * 1024); // KB -> TB
+        // 统一使用 TB 单位显示（数据源单位为字节）
+        const formatSize = (bytes) => {
+            const tb = bytes / Math.pow(1024, 4); // B -> TB
             return tb.toFixed(2) + ' TB';
         };
 
