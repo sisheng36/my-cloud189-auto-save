@@ -17,7 +17,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0 10px 0 0;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .modal-content {
@@ -96,6 +96,24 @@
     gap: 32px;
     margin-bottom: 20px;
 }
+
+[data-theme="cinema"] .modal {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="cinema"] .modal-content {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(99, 102, 241, 0.1);
+}
+
+[data-theme="cinema"] .form-actions {
+    background: rgba(30, 41, 59, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(71, 85, 105, 0.3);
+}
+
 .radio-label {
     display: flex;
     align-items: center;
@@ -104,6 +122,10 @@
 .radio-label input[type="radio"] {
     width: auto;
     order: -1;
+}
+
+.files-list-modal {
+    z-index: 1005; /* 低于 manualTmdbModal(1100)，让TMDB绑定弹窗能显示在上面 */
 }
 
 .files-list-modal .modal-content {
@@ -140,4 +162,80 @@
 .preview-rename-modal .modal-content {
     max-height: 60vh;
     margin-top: 2vh;
+}
+
+/* 登录选项卡 */
+.login-type-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.login-type-tabs button {
+    flex: 1;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.login-type-tabs button.active {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* 扫码登录容器 */
+#qr-login-container {
+    display: none;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.qr-code-wrapper {
+    position: relative;
+    display: inline-block;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+}
+
+.qr-scanner-line {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    height: 3px;
+    background: linear-gradient(to right, transparent, #6366f1, transparent);
+    box-shadow: 0 0 8px #6366f1;
+    animation: scanAnim 3s linear infinite;
+    z-index: 10;
+}
+
+@keyframes scanAnim {
+    0% { top: 10px; }
+    50% { top: 210px; }
+    100% { top: 10px; }
+}
+
+#qr-status-mask {
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 8px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
 }

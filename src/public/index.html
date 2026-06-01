@@ -88,30 +88,57 @@
                     </div>
                     <form id="accountForm">
                         <div class="form-body">
-                            <div class="form-group">
-                                <label for="username">用户名</label>
-                                <input type="text" id="username" required>
+                            <!-- 登录方式切换标签 -->
+                            <div class="login-type-tabs" id="loginTypeTabs">
+                                <button type="button" id="tab-pass-login" class="active" onclick="switchLoginTab('pass')">账号密码登录</button>
+                                <button type="button" id="tab-qr-login" onclick="switchLoginTab('qr')">扫码登录</button>
                             </div>
-                            <div class="form-group">
-                                <label for="password">密码</label>
-                                <input type="password" id="password">
-                            </div>
-                            <!---验证码-->
-                            <div class="form-group" id="account-captcha" style="display: none;">
-                                <label for="captcha">验证码</label>
-                                <div class="captcha-container">
-                                    <img id="captchaImage" src="" alt="验证码">
-                                    <input type="text" id="validateCode" placeholder="验证码">
+
+                            <!-- 账号密码/Cookie登录区域 -->
+                            <div id="password-login-fields">
+                                <div class="form-group">
+                                    <label for="username">用户名</label>
+                                    <input type="text" id="username" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="password">密码</label>
+                                    <input type="password" id="password">
+                                </div>
+                                <!---验证码-->
+                                <div class="form-group" id="account-captcha" style="display: none;">
+                                    <label for="captcha">验证码</label>
+                                    <div class="captcha-container">
+                                        <img id="captchaImage" src="" alt="验证码">
+                                        <input type="text" id="validateCode" placeholder="验证码">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="cookie">Cookie</label>
+                                    <input type="text" id="cookie" placeholder="从浏览器 Network 页签复制完整 Cookie">
+                                    <small class="form-text">登录 cloud.189.cn 后，按 F12 → Network → 任意请求 → Headers → Cookie，复制完整值</small>
+                                </div>
+                                <div class="form-group">
+                                <small class="form-text">密码和Cookie至少填写一个, 如果都填写, 则只有账号密码生效</small>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label for="cookie">Cookie</label>
-                                <input type="text" id="cookie" placeholder="从浏览器 Network 页签复制完整 Cookie">
-                                <small class="form-text">登录 cloud.189.cn 后，按 F12 → Network → 任意请求 → Headers → Cookie，复制完整值</small>
+
+                            <!-- 扫码登录区域 -->
+                            <div id="qr-login-container" style="display: none;">
+                                <div class="qr-code-wrapper">
+                                    <div class="qr-scanner-line" id="qr-scanner-line"></div>
+                                    <img id="qr-code-img" src="" alt="二维码加载中..." style="width: 200px; height: 200px; display: block; border-radius: 8px;" />
+
+                                    <div id="qr-status-mask" style="display: none;">
+                                        <span id="qr-mask-icon" style="font-size: 32px; margin-bottom: 10px;">🔔</span>
+                                        <span id="qr-mask-text" style="color: white; font-size: 14px; font-weight: 500;">已扫码，请在手机端确认</span>
+                                        <button type="button" id="qr-refresh-btn" class="btn-primary" style="margin-top: 15px; display: none; padding: 6px 16px; font-size: 12px;" onclick="refreshQRCode(event)">重新获取</button>
+                                    </div>
+                                </div>
+                                <div id="qr-status-message" style="margin-top: 15px; font-size: 14px; color: var(--text-secondary); font-weight: 500;">
+                                    点击"扫码登录"获取二维码
+                                </div>
                             </div>
-                            <div class="form-group">
-                            <small class="form-text">密码和Cookie至少填写一个, 如果都填写, 则只有账号密码生效</small>
-                            </div>
+
                             <div class="form-group">
                                 <label for="alias">别名(可选)</label>
                                 <input type="text" id="alias">
