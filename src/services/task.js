@@ -885,55 +885,164 @@ class TaskService {
             };
         } else {
             const isUserModifiedTaskName = taskDto.taskName && taskDto.taskName.trim() !== '' && taskDto.taskName !== shareInfo.fileName;
-            
+
             if (isUserModifiedTaskName) {
                 logTaskEvent(`[任务创建] 检测到用户手动修改任务名: "${taskDto.taskName}"，将使用用户输入`);
                 standardName = taskDto.taskName;
-            }
-            
-            const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
-            if (tmdbApiKey && !isUserModifiedTaskName) {
-                try {
-                    logTaskEvent(`[任务创建] 开始解析资源名称: ${shareInfo.fileName}`);
-                    
-                    const baseName = this._extractCleanTitle(shareInfo.fileName);
-                    const year = this._extractYear(shareInfo.fileName);
-                    
-                    logTaskEvent(`[任务创建] 提纯结果: "${baseName}", 年份: ${year || '未知'}`);
-                    
-                    const tmdbService = new TMDBService();
-                    const typesToTry = taskDto.videoType ? [taskDto.videoType] : ['tv', 'movie'];
-                    
-                    for (const type of typesToTry) {
-                        const result = type === 'tv' 
-                            ? await tmdbService.searchTV(baseName, year ? year.toString() : '')
-                            : await tmdbService.searchMovie(baseName, year ? year.toString() : '');
-                        
-                        if (result && result.title) {
-                            const validation = this._validateTmdbResult(result, baseName, year, type);
-                            
-                            if (validation.valid) {
-                                const resultYear = result.releaseDate ? parseInt(result.releaseDate.substring(0, 4)) : year;
-                                standardName = resultYear ? `${result.title} (${resultYear})` : result.title;
-                                
-                                logTaskEvent(`[任务创建] ✅ TMDB匹配成功: "${standardName}" (原名: ${result.originalTitle || 'N/A'}, 相似度: ${validation.similarity})`);
-                                
-                                tmdbInfo = {
-                                    id: result.id,
-                                    type: type,
-                                    title: result.title,
-                                    originalTitle: result.originalTitle,
-                                    year: resultYear
-                                };
-                                
-                                break;
+
+                // 从用户输入的任务名中提取 TMDB ID（支持 {tmdb-156571} 格式）
+                const tmdbIdMatch = taskDto.taskName.match(/(?:^|[\[{(\s_/])tmdb(?:id)?[-=:_ ](\d+)(?:$|[\]})\s_/])/i);
+                if (tmdbIdMatch) {
+                    const extractedTmdbId = parseInt(tmdbIdMatch[1]);
+                    logTaskEvent(`[任务创建] 从任务名提取到 TMDB ID: ${extractedTmdbId}`);
+
+                    const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+                    if (tmdbApiKey) {
+                        try {
+                            const tmdbService = new TMDBService();
+                            // 启发式推断类型决定查询顺序
+                            const inferredType = this._inferVideoType(taskDto.taskName, null, null);
+                            let detail = null;
+                            let detailType = null;
+
+                            if (inferredType === 'movie') {
+                                detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                                if (detail?.title) detailType = 'movie';
+                                else {
+                                    detail = await tmdbService.getTVDetails(extractedTmdbId);
+                                    if (detail?.title) detailType = 'tv';
+                                }
                             } else {
-                                logTaskEvent(`[任务创建] ⚠️ TMDB匹配到但验证失败: ${validation.reason} (分数: ${validation.score}/100)`);
+                                detail = await tmdbService.getTVDetails(extractedTmdbId);
+                                if (detail?.title) detailType = 'tv';
+                                else {
+                                    detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                                    if (detail?.title) detailType = 'movie';
+                                }
                             }
+
+                            if (detail && detail.title) {
+                                const detailYear = detail.releaseDate ? parseInt(detail.releaseDate.substring(0, 4)) : null;
+                                // 清理任务名中的 TMDB ID 标记
+                                const cleanName = standardName
+                                    .replace(/\s*\{tmdb[^}]*\}\s*/i, ' ')
+                                    .replace(/\s*\[tmdb[^]]*\]\s*/i, ' ')
+                                    .replace(/\s*\(tmdb[^)]*\)\s*/i, ' ')
+                                    .trim();
+
+                                tmdbInfo = {
+                                    id: extractedTmdbId,
+                                    type: detailType,
+                                    title: detail.title,
+                                    year: detailYear
+                                };
+
+                                logTaskEvent(`[任务创建] ✅ TMDB ID ${extractedTmdbId} 匹配成功: "${detail.title}" (${detailYear || '未知年'}), 类型: ${detailType}`);
+                            } else {
+                                logTaskEvent(`[任务创建] ⚠️ TMDB ID ${extractedTmdbId} 查询失败: 未找到有效信息`);
+                            }
+                        } catch (error) {
+                            logTaskEvent(`[任务创建] ⚠️ TMDB ID ${extractedTmdbId} 查询异常: ${error.message}`);
                         }
                     }
-                } catch (error) {
-                    logTaskEvent(`[任务创建] ⚠️ TMDB匹配失败: ${error.message}`);
+                }
+            }
+
+            const tmdbApiKey = ConfigService.getConfigValue('tmdb.tmdbApiKey');
+            if (tmdbApiKey && !isUserModifiedTaskName) {
+                // ====== 优先从文件名中提取 TMDB ID（比标题搜索更准确） ======
+                const tmdbIdMatch = shareInfo.fileName.match(/(?:^|[\[{(\s_/])tmdb(?:id)?[-=:_ ](\d+)(?:$|[\]})\s_/])/i);
+                if (tmdbIdMatch) {
+                    const extractedTmdbId = parseInt(tmdbIdMatch[1]);
+                    logTaskEvent(`[任务创建] 从文件名提取到 TMDB ID: ${extractedTmdbId}`);
+
+                    try {
+                        const tmdbService = new TMDBService();
+                        // 启发式推断类型决定查询顺序
+                        const inferredType = this._inferVideoType(shareInfo.fileName, null, null);
+                        let detail = null;
+                        let detailType = null;
+
+                        if (inferredType === 'movie') {
+                            detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                            if (detail?.title) detailType = 'movie';
+                            else {
+                                detail = await tmdbService.getTVDetails(extractedTmdbId);
+                                if (detail?.title) detailType = 'tv';
+                            }
+                        } else {
+                            detail = await tmdbService.getTVDetails(extractedTmdbId);
+                            if (detail?.title) detailType = 'tv';
+                            else {
+                                detail = await tmdbService.getMovieDetails(extractedTmdbId);
+                                if (detail?.title) detailType = 'movie';
+                            }
+                        }
+
+                        if (detail && detail.title) {
+                            const detailYear = detail.releaseDate ? parseInt(detail.releaseDate.substring(0, 4)) : null;
+                            standardName = detailYear ? `${detail.title} (${detailYear})` : detail.title;
+
+                            tmdbInfo = {
+                                id: extractedTmdbId,
+                                type: detailType,
+                                title: detail.title,
+                                year: detailYear
+                            };
+
+                            logTaskEvent(`[任务创建] ✅ TMDB ID ${extractedTmdbId} 匹配成功: "${detail.title}" (${detailYear || '未知年'}), 类型: ${detailType}`);
+                        } else {
+                            logTaskEvent(`[任务创建] ⚠️ TMDB ID ${extractedTmdbId} 查询失败: 未找到有效信息，将回退标题搜索`);
+                        }
+                    } catch (error) {
+                        logTaskEvent(`[任务创建] ⚠️ TMDB ID ${extractedTmdbId} 查询异常: ${error.message}`);
+                    }
+                }
+
+                // 如果通过 TMDB ID 没有获取到信息，回退到标题搜索
+                if (!tmdbInfo) {
+                    try {
+                        logTaskEvent(`[任务创建] 开始解析资源名称: ${shareInfo.fileName}`);
+
+                        const baseName = this._extractCleanTitle(shareInfo.fileName);
+                        const year = this._extractYear(shareInfo.fileName);
+
+                        logTaskEvent(`[任务创建] 提纯结果: "${baseName}", 年份: ${year || '未知'}`);
+
+                        const tmdbService = new TMDBService();
+                        const typesToTry = taskDto.videoType ? [taskDto.videoType] : ['tv', 'movie'];
+
+                        for (const type of typesToTry) {
+                            const result = type === 'tv'
+                                ? await tmdbService.searchTV(baseName, year ? year.toString() : '')
+                                : await tmdbService.searchMovie(baseName, year ? year.toString() : '');
+
+                            if (result && result.title) {
+                                const validation = this._validateTmdbResult(result, baseName, year, type);
+
+                                if (validation.valid) {
+                                    const resultYear = result.releaseDate ? parseInt(result.releaseDate.substring(0, 4)) : year;
+                                    standardName = resultYear ? `${result.title} (${resultYear})` : result.title;
+
+                                    logTaskEvent(`[任务创建] ✅ TMDB匹配成功: "${standardName}" (原名: ${result.originalTitle || 'N/A'}, 相似度: ${validation.similarity})`);
+
+                                    tmdbInfo = {
+                                        id: result.id,
+                                        type: type,
+                                        title: result.title,
+                                        originalTitle: result.originalTitle,
+                                        year: resultYear
+                                    };
+
+                                    break;
+                                } else {
+                                    logTaskEvent(`[任务创建] ⚠️ TMDB匹配到但验证失败: ${validation.reason} (分数: ${validation.score}/100)`);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        logTaskEvent(`[任务创建] ⚠️ TMDB匹配失败: ${error.message}`);
+                    }
                 }
             }
             
