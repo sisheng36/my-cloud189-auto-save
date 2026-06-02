@@ -1818,7 +1818,12 @@ async function parseShareLink() {
                         };
                     }
                     
-                    autoDetectVideoType(data.tmdbInfo.standardName);
+                    const videoTypeSelect = document.getElementById('videoType');
+                    if (videoTypeSelect && data.tmdbInfo.type) {
+                        videoTypeSelect.value = data.tmdbInfo.type;
+                    } else {
+                        autoDetectVideoType(data.tmdbInfo.standardName);
+                    }
                 } else {
                     const cleanedName = rawName.replace(/[\[\({【]?(19|20)\d{2}[\]\)}】]?/g, '').trim();
                     taskName.value = cleanedName;
