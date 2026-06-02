@@ -23,6 +23,8 @@
     border: none;
     font-weight: 600;
     font-size: 14px;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .floating-btn:hover {
@@ -36,6 +38,10 @@
     filter: brightness(0) invert(1);
 }
 
+/* 强制子元素不响应鼠标事件，使点击事件能够完美触发在父级按钮上 */
+.floating-btn * {
+    pointer-events: none;
+}
 
 .floating-btns-container {
     display: flex;
@@ -45,6 +51,7 @@
     transition: all 0.3s ease;
     opacity: 1;
     transform: translateY(0);
+    visibility: visible;
 }
 
 .floating-btns-container.collapsed {
@@ -53,6 +60,7 @@
     pointer-events: none;
     margin: 0;
     height: 0;
+    visibility: hidden;
 }
 
 #toggleIcon {
