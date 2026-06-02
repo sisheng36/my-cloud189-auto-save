@@ -49,6 +49,21 @@ function removeTmdbCache(taskId) {
 // 页面加载时初始化缓存
 loadTmdbCacheFromStorage();
 
+// IntersectionObserver 懒加载海报
+const posterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            const el = entry.target;
+            const poster = el.dataset.poster;
+            if (poster) {
+                el.style.backgroundImage = `url('${poster}')`;
+                el.classList.add('poster-loaded');
+            }
+            posterObserver.unobserve(el);
+        }
+    });
+}, { rootMargin: '200px 0px' });
+
 
 // 任务相关功能
 function createProgressRing(current, total) {
@@ -295,7 +310,7 @@ function renderTaskMediaWall(tasks) {
         if (isCinemaMode) {
             // 影院模式：使用垂直卡片布局（背景图在tr上）
             tbody.innerHTML += `
-                <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}' style="background-image: url('${poster || ''}')">
+                <tr class="media-wall-card lazy-poster cine-poster" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}' data-poster='${poster || ''}'>
                     <td class="media-wall-info-cell" style="display: contents;">
                         <div class="media-card-top">
                             ${renderStatusCapsule(task)}
@@ -348,8 +363,8 @@ function renderTaskMediaWall(tasks) {
             tbody.innerHTML += `
                 <tr class="media-wall-card" data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
                     <td data-label="海报" class="media-wall-poster-cell">
-                        <div class="media-wall-poster ${poster ? '' : 'is-placeholder'}"
-                             style="background-image:url('${poster}') ${tmdbUrl ? '; cursor: pointer;' : ''}"
+                        <div class="media-wall-poster lazy-poster ${poster ? '' : 'is-placeholder'}"
+                             data-poster='${poster}'
                              ${tmdbUrl ? `onclick="window.open('${tmdbUrl}', '_blank');"` : ''}>
                             ${poster ? '' : '<span>暂无海报</span>'}
                         </div>
@@ -411,6 +426,9 @@ function renderTaskMediaWall(tasks) {
             </tr>
         `;
     }
+
+    // 懒加载海报：观察新渲染的卡片
+    tbody.querySelectorAll('.lazy-poster').forEach(el => posterObserver.observe(el));
 }
 
 var taskList = []

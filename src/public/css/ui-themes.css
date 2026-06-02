@@ -947,6 +947,13 @@ tbody th:last-child {
     background-size: cover;
     background-position: center;
     box-shadow: 0 18px 30px rgba(15, 23, 42, 0.22);
+    transition: opacity 0.4s ease;
+    opacity: 0;
+}
+
+.media-wall-poster.poster-loaded,
+.cine-poster.poster-loaded {
+    opacity: 1;
 }
 
 .media-wall-poster::after {
@@ -1100,6 +1107,7 @@ tbody th:last-child {
     background-color: rgba(15, 23, 42, 0.35) !important;
     background-size: cover;
     background-position: center;
+    transition: opacity 0.4s ease;
     border: 1px solid rgba(99, 102, 241, 0.25);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     overflow: hidden;

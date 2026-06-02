@@ -1,6 +1,7 @@
 {
   "name": "cloud189-auto-save",
   "version": "3.0.0",
+  "license": "MIT",
   "description": "天翼云盘自动转存系统",
   "main": "src/index.js",
   "scripts": {

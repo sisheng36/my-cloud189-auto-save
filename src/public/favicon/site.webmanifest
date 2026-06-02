@@ -1,6 +1,14 @@
 {
   "name": "天翼云盘自动转存",
   "short_name": "自动转存",
+  "description": "天翼云盘自动转存系统 - CAS秒传、AI重命名、TMDB刮削",
+  "start_url": "/",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "theme_color": "#1e293b",
+  "background_color": "#0f172a",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -14,8 +22,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  ]
 }
