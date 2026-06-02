@@ -1705,17 +1705,24 @@ AppDataSource.initialize().then(async () => {
                 res.json({ success: true });
                 return
             }
+            // 打印 AI 聊天开始日志
+            logTaskEvent(`[AI 聊天] 收到用户消息: "${userMessage}"`);
             
             AIService.streamChat(userMessage, async (chunk) => {
+                if (chunk === '[END]') {
+                    // 打印 AI 聊天结束日志
+                    logTaskEvent(`[AI 聊天] 响应结束`);
+                }
                 sendAIMessage(chunk);
             })
             res.json({ success: true });
         } catch (error) {
+            logTaskEvent(`[AI 聊天] 处理聊天消息失败: ${error.message}`);
             console.error('处理聊天消息失败:', error);
             res.status(500).json({ success: false, error: '处理消息失败' });
         }
     })
-
+ 
     app.post('/api/chat/enhanced', async (req, res) => {
         const { message } = req.body;
         try {
@@ -1723,13 +1730,16 @@ AppDataSource.initialize().then(async () => {
             if(!userMessage) {
                 return res.json({ success: true });
             }
-
+            // 打印 AI 增强助手消息日志
+            logTaskEvent(`[AI 助手] 收到增强聊天消息: "${userMessage}"`);
+ 
             const { AIIntentService, AI_FUNCTIONS } = require('./services/AIIntentService');
             const intentService = new AIIntentService();
-
+ 
             const shareLink = intentService.detectShareLink(userMessage);
             
             if (shareLink) {
+                logTaskEvent(`[AI 助手] 检测到分享链接: ${shareLink}，开始解析并尝试智能创建任务...`);
                 AIService.streamChatWithFunctions(
                     userMessage,
                     AI_FUNCTIONS,
@@ -1740,7 +1750,7 @@ AppDataSource.initialize().then(async () => {
                     },
                     async (functionCall) => {
                         const { name, arguments: args } = functionCall;
-                        
+                        logTaskEvent(`[AI 助手] 识别到分享链接函数调用: ${name}, 参数: ${JSON.stringify(args)}`);
                         if (name === 'smart_create') {
                             const result = {
                                 type: 'task_preview',
@@ -1759,7 +1769,7 @@ AppDataSource.initialize().then(async () => {
                 );
                 return res.json({ success: true });
             }
-
+ 
             let functionCallResult = null;
             let textResponse = '';
             
@@ -1782,8 +1792,9 @@ AppDataSource.initialize().then(async () => {
                     resolve();
                 }, 10000);
             });
-
+ 
             if (functionCallResult) {
+                logTaskEvent(`[AI 助手] 匹配到系统意图函数: ${functionCallResult.name}, 参数: ${JSON.stringify(functionCallResult.arguments)}`);
                 return res.json({
                     success: true,
                     type: 'function_call',
@@ -1792,34 +1803,39 @@ AppDataSource.initialize().then(async () => {
             }
             
             if (textResponse) {
+                logTaskEvent(`[AI 助手] AI 文本回复: "${textResponse.substring(0, 100)}${textResponse.length > 100 ? '...' : ''}"`);
                 sendAIMessage(textResponse);
             }
             
             return res.json({ success: true });
-
+ 
         } catch (error) {
+            logTaskEvent(`[AI 助手] 处理增强聊天消息失败: ${error.message}`);
             console.error('处理增强聊天消息失败:', error);
             res.status(500).json({ success: false, error: error.message });
         }
     })
-
+ 
     app.post('/api/chat/execute-function', async (req, res) => {
         const { operation, params } = req.body;
         try {
+            logTaskEvent(`[AI 助手] 执行操作: ${operation}, 参数: ${JSON.stringify(params)}`);
             const AIOperationHandler = require('./services/AIOperationHandler');
             const { AIIntentService } = require('./services/AIIntentService');
             
             const handler = new AIOperationHandler(taskService);
             const intentService = new AIIntentService();
-
+ 
             if (intentService.requiresConfirmation(operation)) {
+                logTaskEvent(`[AI 助手] 操作 ${operation} 需要用户二次确认`);
                 const dialog = intentService.buildConfirmDialog(operation, params);
                 return res.json(dialog);
             }
-
+ 
             const result = await handler.executeOperation(operation, params);
             
             const message = intentService.formatSuccessMessage(operation, result.result);
+            logTaskEvent(`[AI 助手] 操作 ${operation} 执行成功，结果: ${JSON.stringify(result.result)}`);
             
             return res.json({
                 type: 'operation_result',
@@ -1827,8 +1843,9 @@ AppDataSource.initialize().then(async () => {
                 message,
                 ...result.result
             });
-
+ 
         } catch (error) {
+            logTaskEvent(`[AI 助手] 执行操作 ${operation} 失败: ${error.message}`);
             console.error('执行Function失败:', error);
             res.status(500).json({ 
                 success: false, 
@@ -1836,30 +1853,34 @@ AppDataSource.initialize().then(async () => {
             });
         }
     })
-
+ 
     app.post('/api/chat/confirm', async (req, res) => {
         const { operation, params, confirmed } = req.body;
         try {
+            logTaskEvent(`[AI 助手] 操作确认状态: ${operation}, confirmed=${confirmed}`);
             if (!confirmed) {
+                logTaskEvent(`[AI 助手] 用户取消了操作: ${operation}`);
                 return res.json({
                     success: false,
                     message: '操作已取消'
                 });
             }
-
+ 
             const AIOperationHandler = require('./services/AIOperationHandler');
             const handler = new AIOperationHandler(taskService);
-
+ 
             const result = await handler.executeOperation(operation, params);
-
+            logTaskEvent(`[AI 助手] 用户确认后操作 ${operation} 执行完成，成功=${result.success}`);
+ 
             return res.json({
                 type: 'operation_result',
                 success: result.success,
                 message: result.success ? '操作执行成功' : '操作执行失败',
                 ...result.result
             });
-
+ 
         } catch (error) {
+            logTaskEvent(`[AI 助手] 确认并执行操作 ${operation} 失败: ${error.message}`);
             console.error('确认操作失败:', error);
             res.status(500).json({ 
                 success: false, 
@@ -1867,27 +1888,30 @@ AppDataSource.initialize().then(async () => {
             });
         }
     })
-
+ 
     app.post('/api/chat/confirm-preview', async (req, res) => {
         const { preview } = req.body;
         try {
+            logTaskEvent(`[AI 助手] 用户确认智能预览任务，准备创建: ${preview.shareLink}`);
             const AIOperationHandler = require('./services/AIOperationHandler');
             const handler = new AIOperationHandler(taskService);
-
+ 
             const result = await handler.executeOperation('create_task', {
                 shareLink: preview.shareLink,
                 targetFolder: preview.suggestedPath,
                 accountId: 1
             });
-
+            logTaskEvent(`[AI 助手] 智能任务创建结果: 成功=${result.success}`);
+ 
             return res.json({
                 success: result.success,
                 taskId: result.result?.taskId,
                 message: result.success ? '任务创建成功' : '任务创建失败',
                 error: result.error
             });
-
+ 
         } catch (error) {
+            logTaskEvent(`[AI 助手] 确认并创建预览任务失败: ${error.message}`);
             console.error('确认创建任务失败:', error);
             res.status(500).json({ 
                 success: false, 
