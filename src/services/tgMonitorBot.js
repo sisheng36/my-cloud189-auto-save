@@ -156,7 +156,6 @@ class TgMonitorBot {
         const embyConfig = ConfigService.getConfigValue('emby');
         const enableQuery = typeof embyConfig === 'object' ? embyConfig.enableQuery : false;
         let embyStatus = '';
-        let shouldSave = true;
 
         if (enableQuery && tmdbInfo.tmdbId && (tmdbInfo.type === '电视剧' || tmdbInfo.type === '动画' || tmdbInfo.type === '纪录片')) {
             const embyService = new EmbyService();
@@ -165,25 +164,38 @@ class TgMonitorBot {
                 this._send(chatId, '⚠ Emby 服务不可达，无法检查库存');
                 return;
             }
-            if (seasonSet && tmdbInfo.totalSeasons > 0) {
-                let hasAll = true;
-                for (let i = 1; i <= tmdbInfo.totalSeasons; i++) {
-                    if (!seasonSet.has(i)) { hasAll = false; break; }
-                }
-                if (hasAll) {
-                    this._send(chatId, `⏭ ${tmdbInfo.name} · 全季已入库，跳过`);
-                    return;
-                }
-                const have = [...seasonSet].filter(s => s > 0).sort((a, b) => a - b);
+            const shareSeasons = this._extractSeasonSet(parsed.rawText);
+            if (!seasonSet && tmdbInfo.totalSeasons <= 0) {
+                // 无 Emby 数据且无 TMDB 总季数，全量转存
+                embyStatus = '未入库，全量转存';
+            } else if (!seasonSet) {
+                // 无 Emby 数据，全量转存
+                embyStatus = '未入库';
+            } else if (tmdbInfo.totalSeasons > 0) {
+                // 有 TMDB 总季数和 Emby 数据，做交集判断
                 const missing = [];
                 for (let i = 1; i <= tmdbInfo.totalSeasons; i++) {
                     if (!seasonSet.has(i)) missing.push(i);
                 }
-                embyStatus = `已入库: S${have.join(',') || '无'} · 缺: S${missing.join(',')}`;
-            } else {
-                embyStatus = '未入库';
+                if (missing.length === 0) {
+                    this._send(chatId, `⏭ ${tmdbInfo.name} · 全季已入库，跳过`);
+                    return;
+                }
+                if (shareSeasons.length > 0) {
+                    // 有分享季号：只需交集判断
+                    const need = shareSeasons.filter(s => missing.includes(s));
+                    if (need.length === 0) {
+                        this._send(chatId, `⏭ ${tmdbInfo.name} · 分享的季已入库（分享: S${shareSeasons.join(',')}，缺失: S${missing.join(',')}），跳过`);
+                        return;
+                    }
+                    const have = [...seasonSet].filter(s => s > 0).sort((a, b) => a - b);
+                    embyStatus = `已入库: S${have.join(',') || '无'} · 缺: S${missing.join(',')} · 本次补: S${need.join(',')}`;
+                } else {
+                    // 无分享季号：全部缺失都转存
+                    const have = [...seasonSet].filter(s => s > 0).sort((a, b) => a - b);
+                    embyStatus = `已入库: S${have.join(',') || '无'} · 缺: S${missing.join(',')}`;
+                }
             }
-        }
 
         // 分类目录
         const classification = ConfigService.getConfigValue('folderClassification') || {};
@@ -379,6 +391,39 @@ class TgMonitorBot {
 
     _linkKey(link) {
         return link.replace(/^https?:\/\/cloud\.189\.cn\/(t\/|web\/share\?code=)/, '').replace(/[?&].*$/, '');
+    }
+
+    _extractSeasonSet(text) {
+        const seasonMap = {};
+        // 范围模式: S01-S03, Season 1-3, 第1-3季, 全3季
+        const rangePatterns = [
+            /S(\d{1,3})\s*[-~]\s*S(\d{1,3})/i,
+            /Season\s*(\d{1,3})\s*[-~]\s*Season\s*(\d{1,3})/i,
+            /Seasons?\s*(\d{1,3})\s*[-~]\s*(\d{1,3})/i,
+            /第\s*(\d{1,3})\s*[-~]\s*(\d{1,3})\s*季/,
+            /全\s*(\d{1,3})\s*季/
+        ];
+        for (const pat of rangePatterns) {
+            const matches = text.matchAll(new RegExp(pat.source, 'gi'));
+            for (const m of matches) {
+                if (m.length >= 3) {
+                    const start = parseInt(m[1]), end = parseInt(m[2]);
+                    if (start > 0 && end >= start) for (let i = start; i <= end; i++) seasonMap[i] = true;
+                } else if (m.length === 2) {
+                    const n = parseInt(m[1]);
+                    if (n > 0) for (let i = 1; i <= n; i++) seasonMap[i] = true;
+                }
+            }
+        }
+        // 单季模式: S01, Season 1, 第1季
+        const singlePatterns = [/S(\d{1,3})\b/i, /Season\s*(\d{1,3})\b/i, /第\s*(\d{1,3})\s*季/];
+        for (const pat of singlePatterns) {
+            const matches = text.matchAll(new RegExp(pat.source, 'gi'));
+            for (const m of matches) {
+                if (m.length > 1) { const n = parseInt(m[1]); if (n > 0) seasonMap[n] = true; }
+            }
+        }
+        return Object.keys(seasonMap).map(Number).sort((a, b) => a - b);
     }
 
     _send(chatId, text) {
