@@ -34,7 +34,6 @@ jobs:
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
           echo "version=$PKG_VERSION" >> $GITHUB_OUTPUT
-
       - name: 确定最终构建版本号
         id: final_version
         run: |
@@ -44,7 +43,6 @@ jobs:
           FINAL="${INPUT_VERSION:-$PKG_VERSION}"
           echo "version=$FINAL" >> $GITHUB_OUTPUT
           echo "将使用版本号: $FINAL"
-
       - name: 生成分支镜像标签
         id: image_tags
         run: |
@@ -57,7 +55,6 @@ jobs:
             echo "version_tag=$VERSION" >> $GITHUB_OUTPUT
             echo "latest_tag=latest" >> $GITHUB_OUTPUT
           fi
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
