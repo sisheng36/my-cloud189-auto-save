@@ -329,11 +329,12 @@ async function fetchTasks() {
             renderTaskMediaWall(data.data);
             return;
         }
+        let rowsHtml = '';
         data.data.forEach(task => {
             taskList.push(task)
             const taskName = task.shareFolderName?(task.resourceName + '/' + task.shareFolderName): task.resourceName || '未知'
             const cronIcon = task.enableCron ? '<span class="cron-icon" title="已开启自定义定时任务">⏰</span>' : '';
-            tbody.innerHTML += `
+            rowsHtml += `
                 <tr data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
                     <td>
                         <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
@@ -355,6 +356,7 @@ async function fetchTasks() {
                 </tr>
             `;
         });
+        tbody.innerHTML = rowsHtml;
     }
 }
 
@@ -664,8 +666,9 @@ async function showFileListModal(taskId) {
         loading.hide()
         if (data.success) {
             const tbody = document.getElementById('fileListBody');
+            let fileRowsHtml = '';
             data.data.forEach(file => {
-                tbody.innerHTML += `
+                fileRowsHtml += `
                     <tr>
                         <td><input type="checkbox" class="file-checkbox" data-filename="${file.name}" data-id="${file.id}"></td>
                         <td>${file.name}</td>
@@ -674,6 +677,7 @@ async function showFileListModal(taskId) {
                     </tr>
                 `;
             });
+            tbody.innerHTML = fileRowsHtml;
         }else{
             message.error(data.error)
         }
