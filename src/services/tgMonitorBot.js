@@ -120,17 +120,29 @@ class TgMonitorBot {
             mediaType = /[._ ]S\d{1,3}([._ ]E\d{1,3})?/i.test(rawText) ? 'tv' : 'movie';
         }
 
-        // 提取标题和年份
-        const clean = rawText.replace(/^[📺🎬🐾💽📽]\s*/, '').replace(/\n/g, ' ');
+        // 提取标题和年份 — 剥离前缀 emoji（包括多码点序列、变体选择器、PUA）
+        let clean = rawText
+            .replace(/^[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}\u{2300}-\u{23FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{E0000}-\u{E007F}\u{200D}\u{20E3}]+/ug, '')
+            .replace(/\n/g, ' ')
+            .trim();
         const yearMatch = clean.match(/\((\d{4})\)/);
         if (yearMatch) {
             year = yearMatch[1];
             title = clean.substring(0, clean.indexOf(yearMatch[0])).trim();
         } else {
-            const parts = clean.split(/\s+/);
-            title = parts[0] || '';
+            // 尝试取前几个词作为标题，直到遇到类型关键词或文件格式
+            const words = clean.split(/\s+/);
+            const stopWords = /^(S\d{1,3}E?\d*|第\d+|Season|EP\d+|\.\w{2,4})$/i;
+            const titleParts = [];
+            for (const w of words) {
+                if (stopWords.test(w)) break;
+                titleParts.push(w);
+                if (titleParts.length >= 6) break;
+            }
+            title = titleParts.join(' ') || clean;
         }
 
+        console.log('[MonitorBot] 解析消息:', { shareLink: shareLink.substring(0, 50), mediaType, title, year, rawLen: rawText.length });
         return { shareLink, mediaType, title, year, rawText: clean };
     }
 
