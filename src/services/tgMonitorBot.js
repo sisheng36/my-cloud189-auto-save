@@ -9,20 +9,26 @@ const { EmbyService } = require('./emby');
 class TgMonitorBot {
     constructor() {
         this.bot = null;
-        this.recentMsg = new Map();    // 去重: link → expiresAt
-        this.dedupMs = 5 * 60 * 1000;  // 5分钟去重
-        this.queues = new Map();        // chatId → processing flag，防止并发
+        this.recentMsg = new Map();
+        this.dedupMs = 5 * 60 * 1000;
+        this.queues = new Map();
+        this._starting = false;
     }
 
-    async start(token, chatId, enable = false) {
+    async start(token, chatId, enable) {
+        if (this._starting) return false;
         if (!token || !chatId || !enable) {
             if (this.bot) {
+                this._starting = true;
                 await this.stop();
+                this._starting = false;
             }
             return false;
         }
+        this._starting = true;
         if (this.bot) {
             await this.stop();
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
         const proxy = ProxyUtil.getProxy('telegram');
         this.token = token;
@@ -44,6 +50,7 @@ class TgMonitorBot {
             console.error('Monitor Bot error:', error.message);
         });
         this._initHandlers();
+        this._starting = false;
         console.log('Monitor Bot 已启动');
         return true;
     }
@@ -62,12 +69,12 @@ class TgMonitorBot {
         this.bot.on('message', async (msg) => {
             const chatId = String(msg.chat.id);
             if (chatId !== this.chatId) return;
-            if (msg.from?.is_bot) return;
+            if (msg.from && msg.from.is_bot) return;
             const text = msg.text || msg.caption || '';
             if (text.startsWith('/')) return;
 
             // 只处理带 inline keyboard 的转发消息
-            if (!msg.reply_markup?.inline_keyboard) return;
+            if (!(msg.reply_markup && msg.reply_markup.inline_keyboard)) return;
 
             // 每个 chat 串行处理
             if (this.queues.get(chatId)) return;
@@ -93,8 +100,8 @@ class TgMonitorBot {
         for (const row of msg.reply_markup.inline_keyboard) {
             for (const btn of row) {
                 if ((btn.text.includes('直达') || btn.text.includes('链接')) &&
-                    (btn.url?.startsWith('https://cloud.189.cn/t/') ||
-                     btn.url?.startsWith('https://cloud.189.cn/web/share'))) {
+                    (btn.url && (btn.url.startsWith('https://cloud.189.cn/t/') ||
+                     btn.url.startsWith('https://cloud.189.cn/web/share')))) {
                     shareLink = btn.url;
                     break;
                 }
@@ -196,6 +203,7 @@ class TgMonitorBot {
                     embyStatus = `已入库: S${have.join(',') || '无'} · 缺: S${missing.join(',')}`;
                 }
             }
+        }
 
         // 分类目录
         const classification = ConfigService.getConfigValue('folderClassification') || {};
@@ -236,7 +244,7 @@ class TgMonitorBot {
             }).json();
 
             if (!taskResp.success) {
-                if (taskResp.error?.includes('folder already exists')) {
+                if (taskResp.error && taskResp.error.includes('folder already exists')) {
                     // 重试覆盖
                     const retryResp = await got(`http://localhost:${port}/api/tasks`, {
                         method: 'POST',
@@ -315,7 +323,7 @@ class TgMonitorBot {
                 headers: { 'x-api-key': apiKey },
                 responseType: 'json'
             }).json();
-            if (!searchResp.success || !searchResp.data?.length) return null;
+            if (!searchResp.success || !(searchResp.data && searchResp.data.length)) return null;
 
             const best = searchResp.data[0];
             const tmdbId = String(best.id);
@@ -340,12 +348,12 @@ class TgMonitorBot {
                 if (d.releaseDate) detailYear = d.releaseDate.substring(0, 4);
                 totalSeasons = d.totalSeasons || 0;
                 status = d.status || '';
-                if (d.nextEpisodeToAir?.air_date) nextEpisodeToAir = d.nextEpisodeToAir.air_date;
+                if (d.nextEpisodeToAir && d.nextEpisodeToAir.air_date) nextEpisodeToAir = d.nextEpisodeToAir.air_date;
                 if (searchType !== 'movie') {
-                    if (d.genres?.some(g => g.id === 16)) typeStr = '动画';
-                    else if (d.genres?.some(g => g.id === 99)) typeStr = '纪录片';
+                    if (d.genres && d.genres.some(g => g.id === 16)) typeStr = '动画';
+                    else if (d.genres && d.genres.some(g => g.id === 99)) typeStr = '纪录片';
                 }
-                if (d.originCountry?.length) {
+                if (d.originCountry && d.originCountry.length) {
                     const countryMap = { CN: '中国', US: '美国', JP: '日本', KR: '韩国', GB: '英国', FR: '法国',
                         DE: '德国', IT: '意大利', ES: '西班牙', IN: '印度', TH: '泰国', TW: '台湾', HK: '香港',
                         AU: '澳大利亚', CA: '加拿大', RU: '俄罗斯', BR: '巴西' };
