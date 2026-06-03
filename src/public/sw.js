@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cloud189-cache-v1';
+const CACHE_NAME = 'cloud189-cache-v2';
 
 const STATIC_ASSETS = [
   '/',
