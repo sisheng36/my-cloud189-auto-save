@@ -691,9 +691,10 @@
                                 </div>
                             </div>
                             <div class="settings-item">
-                                <div class="settings-item-label">Chat ID</div>
+                                <div class="settings-item-label">Chat ID（可选）</div>
                                 <div class="settings-item-content">
-                                    <input type="text" id="tgMonitorChatId" placeholder="接收转发消息的 Chat ID">
+                                    <input type="text" id="tgMonitorChatId" placeholder="Bot 所在群组/DM的 Chat ID">
+                                    <small class="form-text">留空则监听所有已加入的群组和私聊。群组使用前需将 Bot 拉入群，并在 BotFather 中 /setprivacy → Disable。</small>
                                 </div>
                             </div>
                         </div>

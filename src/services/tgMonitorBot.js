@@ -32,7 +32,6 @@ class TgMonitorBot {
         }
         const proxy = ProxyUtil.getProxy('telegram');
         this.token = token;
-        this.chatId = chatId;
         this.bot = new TelegramBot(token, {
             polling: true,
             request: {
@@ -68,7 +67,6 @@ class TgMonitorBot {
     _initHandlers() {
         this.bot.on('message', async (msg) => {
             const chatId = String(msg.chat.id);
-            if (chatId !== this.chatId) return;
             if (msg.from && msg.from.is_bot) return;
             const text = msg.text || msg.caption || '';
             if (text.startsWith('/')) return;
