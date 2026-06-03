@@ -32,6 +32,7 @@ class TgMonitorBot {
         }
         const proxy = ProxyUtil.getProxy('telegram');
         this.token = token;
+        this.listenChats = chatId ? String(chatId).split(',').map(s => s.trim()).filter(Boolean) : [];
         this.bot = new TelegramBot(token, {
             polling: true,
             request: {
@@ -70,6 +71,11 @@ class TgMonitorBot {
             if (msg.from && msg.from.is_bot) return;
             const text = msg.text || msg.caption || '';
             if (text.startsWith('/')) return;
+
+            // chatId 白名单：配置了则仅处理指定聊天，未配置则监听所有
+            if (this.listenChats && this.listenChats.length > 0) {
+                if (!this.listenChats.includes(chatId)) return;
+            }
 
             // 只处理带 inline keyboard 的转发消息
             if (!(msg.reply_markup && msg.reply_markup.inline_keyboard)) return;

@@ -213,7 +213,7 @@ async function saveSettings() {
         tgMonitorBot: {
             botToken: document.getElementById('tgMonitorBotToken').value,
             chatId: document.getElementById('tgMonitorChatId').value,
-            enable: !!(document.getElementById('tgMonitorBotToken').value && document.getElementById('tgMonitorChatId').value)
+            enable: !!(document.getElementById('tgMonitorBotToken').value)
         },
         folderClassification: {
             movie: document.getElementById('fcMovie').value || '',
