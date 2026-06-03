@@ -171,6 +171,51 @@ class EmbyService {
             // 移除额外的空格
             .trim();
     }
+    // 获取指定 TMDB ID 在 Emby 中已入库的季集合
+    async getSeasonSet(tmdbId) {
+        if (!this.embyUrl || !this.embyApiKey) {
+            return null;
+        }
+        try {
+            const seriesUrl = `${this.embyUrl}/emby/Items`;
+            const seriesResp = await this.request(seriesUrl, {
+                method: 'GET',
+                searchParams: {
+                    AnyProviderIdEquals: `Tmdb.${tmdbId}`,
+                    IncludeItemTypes: 'Series',
+                    Recursive: true
+                }
+            });
+            if (!seriesResp?.Items?.length) {
+                return null;
+            }
+            const seasonSet = new Set();
+            for (const series of seriesResp.Items) {
+                const seasonUrl = `${this.embyUrl}/emby/Items`;
+                const seasonResp = await this.request(seasonUrl, {
+                    method: 'GET',
+                    searchParams: {
+                        ParentId: series.Id,
+                        IncludeItemTypes: 'Season',
+                        Recursive: false,
+                        Fields: 'IndexNumber'
+                    }
+                });
+                if (seasonResp?.Items) {
+                    for (const season of seasonResp.Items) {
+                        if (season.IndexNumber > 0) {
+                            seasonSet.add(season.IndexNumber);
+                        }
+                    }
+                }
+            }
+            return seasonSet.size > 0 ? seasonSet : null;
+        } catch (error) {
+            logTaskEvent(`Emby getSeasonSet 失败: ${error.message}`);
+            return null;
+        }
+    }
+
     // 路径替换
     _replacePath(path) {
         if (!path.startsWith('/')) {

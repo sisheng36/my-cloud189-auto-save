@@ -16,6 +16,7 @@ async function saveMediaSettings() {
         },
         emby: {
             enable: enableEmby,
+            enableQuery: document.getElementById('enableEmbyQuery').checked,
             serverUrl: document.getElementById('embyServer').value,
             apiKey: document.getElementById('embyApiKey').value,
         },

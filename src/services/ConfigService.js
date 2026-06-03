@@ -85,8 +85,22 @@ class ConfigService {
       },
       emby: {
         enable: false,
+        enableQuery: false,
         serverUrl: '',
         apiKey: ''
+      },
+      tgMonitorBot: {
+        enable: false,
+        botToken: '',
+        chatId: ''
+      },
+      folderClassification: {
+        movie: '',
+        doc: '',
+        anime: '',
+        tvCn: '',
+        tvForeign: '',
+        updating: ''
       },
       cloudSaver: {
         baseUrl: '',

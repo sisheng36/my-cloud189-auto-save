@@ -16,6 +16,7 @@ const FileStore = require('session-file-store')(session);
 const { SchedulerService } = require('./services/scheduler');
 const { logTaskEvent, initSSE, sendAIMessage } = require('./utils/logUtils');
 const TelegramBotManager = require('./utils/TelegramBotManager');
+const { TgMonitorBot } = require('./services/tgMonitorBot');
 const fs = require('fs').promises;
 const path = require('path');
 const { setupCloudSaverRoutes, clearCloudSaverToken } = require('./sdk/cloudsaver');
@@ -142,13 +143,19 @@ AppDataSource.initialize().then(async () => {
     const taskService = new TaskService(taskRepo, accountRepo);
     const embyService = new EmbyService(taskService)
     const messageUtil = new MessageUtil();
-    // 机器人管理
-    const botManager = TelegramBotManager.getInstance();
     // 初始化机器人
+    const botManager = TelegramBotManager.getInstance();
     await botManager.handleBotStatus(
         ConfigService.getConfigValue('telegram.bot.botToken'),
         ConfigService.getConfigValue('telegram.bot.chatId'),
         ConfigService.getConfigValue('telegram.bot.enable')
+    );
+    // 初始化监控 Bot
+    const monitorBot = new TgMonitorBot();
+    await monitorBot.start(
+        ConfigService.getConfigValue('tgMonitorBot.botToken'),
+        ConfigService.getConfigValue('tgMonitorBot.chatId'),
+        ConfigService.getConfigValue('tgMonitorBot.enable')
     );
     // 初始化企业微信应用
     const wecomCfg = ConfigService.getConfigValue('wecom') || {};
@@ -1379,6 +1386,12 @@ AppDataSource.initialize().then(async () => {
             settings.telegram?.bot?.chatId,
             settings.telegram?.bot?.enable
         );
+        // 重启监控 Bot
+        await monitorBot.start(
+            ConfigService.getConfigValue('tgMonitorBot.botToken'),
+            ConfigService.getConfigValue('tgMonitorBot.chatId'),
+            ConfigService.getConfigValue('tgMonitorBot.enable')
+        );
         // 修改配置, 重新实例化消息推送
         messageUtil.updateConfig()
         Cloud189Service.setProxy()
@@ -1457,6 +1470,24 @@ AppDataSource.initialize().then(async () => {
             });
             res.json({ success: true, data: favorites });
         }catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    })
+    // 获取所有常用目录（供设置页分类下拉使用）
+    app.get('/api/common-folders', async (req, res) => {
+        try {
+            const folders = await commonFolderRepo.find({
+                order: { id: 'ASC' }
+            });
+            const accounts = await accountRepo.find({ select: { id: true, username: true } });
+            const accountMap = {};
+            accounts.forEach(a => { accountMap[a.id] = a.username; });
+            const result = folders.map(f => ({
+                ...f,
+                displayName: `${accountMap[f.accountId] || f.accountId} · ${f.path}`
+            }));
+            res.json({ success: true, data: result });
+        } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
     })

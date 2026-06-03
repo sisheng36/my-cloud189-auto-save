@@ -23,6 +23,11 @@ class CreateTaskDto {
         this.enableSystemProxy = data?.enableSystemProxy; // 启用系统代理
         this.isFolder = data?.isFolder; // 是否是文件夹
         this.videoType = data?.videoType; // 视频类型 (movie/tv)
+        this.tmdbId = data?.tmdbId; // TMDB ID（预绑定）
+        this.tmdbTitle = data?.tmdbTitle; // TMDB 标题（预绑定）
+        this.manualTmdbBound = data?.manualTmdbBound; // 已手动绑定TMDB
+        this.manualSeason = data?.manualSeason; // 手动指定季数
+        this.tmdbContent = data?.tmdbContent; // TMDB内容JSON（预绑定）
     }
 
     validate() {

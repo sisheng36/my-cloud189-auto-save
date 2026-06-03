@@ -69,8 +69,21 @@ async function loadSettings() {
             // 媒体信息设置
             document.getElementById('enableStrm').checked = enableStrm;
             document.getElementById('enableEmby').checked = enableEmby;
+            document.getElementById('enableEmbyQuery').checked = settings.emby?.enableQuery || false;
             document.getElementById('embyServer').value = settings.emby?.serverUrl || '';
             document.getElementById('embyApiKey').value = settings.emby?.apiKey || '';
+
+            // 监听 Bot 设置
+            document.getElementById('tgMonitorBotToken').value = settings.tgMonitorBot?.botToken || '';
+            document.getElementById('tgMonitorChatId').value = settings.tgMonitorBot?.chatId || '';
+
+            // 目录分类配置
+            const fc = settings.folderClassification || {};
+            const fcSelects = { fcMovie: fc.movie, fcDoc: fc.doc, fcAnime: fc.anime, fcTvCn: fc.tvCn, fcTvForeign: fc.tvForeign, fcUpdating: fc.updating };
+            Object.entries(fcSelects).forEach(([id, val]) => {
+                const el = document.getElementById(id);
+                if (el && val) el.setAttribute('data-value', val);
+            });
 
             // tg机器人设置
             document.getElementById('enableTgBot').checked = settings.telegram?.bot?.enable || false;
@@ -107,6 +120,8 @@ async function loadSettings() {
             document.getElementById('pushplusTo').value = settings.pushplus?.to || '';
 
             customPushConfigs = settings.customPush || [];
+            // 加载分类目录下拉选项
+            setTimeout(loadFolderClassificationOptions, 300);
         }
     } catch (error) {
         console.error('加载设置失败:', error);
@@ -194,7 +209,20 @@ async function saveSettings() {
             webhook: document.getElementById('pushplusWebhook').value,
             to: document.getElementById('pushplusTo').value
         },
-        customPush: customPushConfigs
+        customPush: customPushConfigs,
+        tgMonitorBot: {
+            botToken: document.getElementById('tgMonitorBotToken').value,
+            chatId: document.getElementById('tgMonitorChatId').value,
+            enable: !!(document.getElementById('tgMonitorBotToken').value && document.getElementById('tgMonitorChatId').value)
+        },
+        folderClassification: {
+            movie: document.getElementById('fcMovie').value || '',
+            doc: document.getElementById('fcDoc').value || '',
+            anime: document.getElementById('fcAnime').value || '',
+            tvCn: document.getElementById('fcTvCn').value || '',
+            tvForeign: document.getElementById('fcTvForeign').value || '',
+            updating: document.getElementById('fcUpdating').value || ''
+        }
     };
     // taskRetryInterval不能少于60秒
     if (settings.task.taskRetryInterval < 60) {
@@ -221,6 +249,32 @@ async function saveSettings() {
 
 // 在页面加载时初始化设置
 document.addEventListener('DOMContentLoaded', loadSettings);
+
+// 加载常用目录到分类下拉框
+async function loadFolderClassificationOptions() {
+    try {
+        const response = await fetch('/api/common-folders');
+        const data = await response.json();
+        if (!data.success) return;
+        const folders = data.data || [];
+        const selectIds = ['fcMovie', 'fcDoc', 'fcAnime', 'fcTvCn', 'fcTvForeign', 'fcUpdating'];
+        selectIds.forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const savedVal = select.getAttribute('data-value') || '';
+            select.innerHTML = '<option value="">未选择</option>';
+            folders.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f.id;
+                opt.textContent = f.displayName || (f.path + ' (' + f.accountId + ')');
+                if (f.id === savedVal) opt.selected = true;
+                select.appendChild(opt);
+            });
+        });
+    } catch (e) {
+        console.error('加载常用目录失败:', e);
+    }
+}
 
 function generateApiKey() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

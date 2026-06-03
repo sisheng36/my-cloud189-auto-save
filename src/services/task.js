@@ -76,7 +76,12 @@ class TaskService {
             targetRegex: taskDto.targetRegex,
             enableTaskScraper: taskDto.enableTaskScraper,
             isFolder: taskDto.isFolder,
-            videoType: taskDto.videoType
+            videoType: taskDto.videoType,
+            tmdbId: taskDto.tmdbId || null,
+            tmdbTitle: taskDto.tmdbTitle || null,
+            manualTmdbBound: taskDto.manualTmdbBound || false,
+            manualSeason: taskDto.manualSeason || null,
+            tmdbContent: taskDto.tmdbContent || null
         };
     }
 
