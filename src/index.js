@@ -511,7 +511,8 @@ AppDataSource.initialize().then(async () => {
             select: {
                 account: {
                     username: true
-                }
+                },
+                tmdbContent: false
             },
             where: whereClause
         });
