@@ -453,7 +453,9 @@ AppDataSource.initialize().then(async () => {
 
     // 任务相关API
     app.get('/api/tasks', async (req, res) => {
-        const { status, search } = req.query;
+        const { status, search, page = 1, pageSize = 50 } = req.query;
+        const pageNum = Math.max(1, parseInt(page) || 1);
+        const size = Math.min(200, Math.max(1, parseInt(pageSize) || 50));
         let whereClause = { };
 
         // 基础条件（AND）
@@ -503,7 +505,7 @@ AppDataSource.initialize().then(async () => {
                 whereClause = searchConditions;
             }
         }
-        const tasks = await taskRepo.find({
+        const [tasks, total] = await taskRepo.findAndCount({
             order: { id: 'DESC' },
             relations: {
                 account: true
@@ -514,13 +516,15 @@ AppDataSource.initialize().then(async () => {
                 },
                 tmdbContent: false
             },
-            where: whereClause
+            where: whereClause,
+            take: size,
+            skip: (pageNum - 1) * size
         });
         // username脱敏
         tasks.forEach(task => {
             task.account.username = task.account.username.replace(/(.{3}).*(.{4})/, '$1****$2');
         });
-        res.json({ success: true, data: tasks });
+        res.json({ success: true, data: tasks, total, page: pageNum, pageSize: size });
         // 异步更新任务显示信息，不阻塞响应
         process.nextTick(async () => {
             const taskEventHandler = new TaskEventHandler();
@@ -549,6 +553,18 @@ AppDataSource.initialize().then(async () => {
                 }
             }
         });
+    });
+
+    app.get('/api/tasks/stats', async (req, res) => {
+        try {
+            const total = await taskRepo.count();
+            const processing = await taskRepo.count({ where: { status: 'processing' } });
+            const completed = await taskRepo.count({ where: { status: 'completed' } });
+            const missing = await taskRepo.count({ where: { missingEpisodes: Not(IsNull()) } });
+            res.json({ success: true, data: { total, processing, completed, missing } });
+        } catch (error) {
+            res.json({ success: false, error: error.message });
+        }
     });
 
     app.post('/api/tasks', async (req, res) => {

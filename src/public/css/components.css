@@ -842,3 +842,33 @@ label[for="customPushEnabled"] {
     margin-right: 6px; 
     flex: 0;
   }
+
+/* 分页器 */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 0;
+}
+.pagination button {
+    padding: 6px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color, #fff);
+    color: var(--text-color, #333);
+    cursor: pointer;
+    font-size: 13px;
+}
+.pagination button:hover:not(:disabled) {
+    border-color: #1890ff;
+    color: #1890ff;
+}
+.pagination button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.pagination .page-info {
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+}

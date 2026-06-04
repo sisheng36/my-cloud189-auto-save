@@ -18,18 +18,12 @@ async function loadVersion() {
 
 async function loadDashboardStats() {
     try {
-        const response = await fetch('/api/tasks?status=all&search=');
+        const response = await fetch('/api/tasks/stats');
         const data = await response.json();
         if (!data.success) {
             return;
         }
-        const tasks = data.data || [];
-        const stats = {
-            total: tasks.length,
-            processing: tasks.filter(task => task.status === 'processing').length,
-            completed: tasks.filter(task => task.status === 'completed').length,
-            missing: tasks.filter(task => task.missingEpisodes).length
-        };
+        const stats = data.data;
         Object.entries(stats).forEach(([key, value]) => {
             const element = document.querySelector(`[data-stat="${key}"]`);
             if (element) {
