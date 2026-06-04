@@ -332,6 +332,7 @@ async function fetchTasks(page) {
         const currentUiStyle = document.documentElement.getAttribute('data-ui-style') || 'classic';
         if (currentUiStyle === 'media') {
             renderTaskMediaWall(data.data);
+            renderPagination(data.total, data.page, data.pageSize);
             return;
         }
         let rowsHtml = '';
@@ -399,50 +400,6 @@ function filterTasks() {
     taskFilterParams.search = taskSearch.value.trim();
     taskFilterParams.page = 1;
     fetchTasks(1);
-}
-async function fetchTasks() {
-    taskList = []
-    loading.show()
-    const response = await fetch(`/api/tasks?status=${taskFilterParams.status}&search=${encodeURIComponent(taskFilterParams.search)}`);
-    const data = await response.json();
-    loading.hide()
-    if (data.success) {
-        const tbody = document.querySelector('#taskTable tbody');
-        tbody.innerHTML = '';
-        const currentUiStyle = document.documentElement.getAttribute('data-ui-style') || 'classic';
-        if (currentUiStyle === 'media') {
-            renderTaskMediaWall(data.data);
-            return;
-        }
-        let rowsHtml = '';
-        data.data.forEach(task => {
-            taskList.push(task)
-            const taskName = task.shareFolderName?(task.resourceName + '/' + task.shareFolderName): task.resourceName || '未知'
-            const cronIcon = task.enableCron ? '<span class="cron-icon" title="已开启自定义定时任务">⏰</span>' : '';
-            rowsHtml += `
-                <tr data-status='${task.status}' data-task-id='${task.id}' data-name='${taskName}'>
-                    <td>
-                        <button class="btn-warning" onclick="executeTask(${task.id})">执行</button>
-                        <button onclick="showEditTaskModal(${task.id})">修改</button>
-                        <button class="btn-danger" onclick="deleteTask(${task.id})">删除</button>
-                        <button class="btn-default" onclick="clearTaskCache(${task.id})">清缓存</button>
-                    </td>
-                    <td data-label="资源名称">${cronIcon}<a href="${task.shareLink}" target="_blank" class='ellipsis' title="${taskName}">${taskName}</a>${task.manualTmdbBound ? `<span style="background:#10b981;color:#fff;padding:2px 6px;border-radius:4px;font-size:11px;margin-left:4px;">🎬 ${task.tmdbTitle || task.tmdbId}${task.manualSeason ? ' S' + task.manualSeason : ''}</span>` : ''}</td>
-                    <td data-label="账号">${task.account.username}</td>
-                    <!--<td data-label="首次保存目录"><a href="https://cloud.189.cn/web/main/file/folder/${task.targetFolderId}" target="_blank">${task.targetFolderId}</a></td>-->
-                     <td data-label="更新目录"><a href="javascript:void(0)" onclick="showFileListModal('${task.id}')" class='ellipsis'>${task.realFolderName || task.realFolderId}</a></td>
-                    <td data-label="最新转存">
-                        <div class='ellipsis' title="${formatLatestSavedFile(task)}">${formatLatestSavedFile(task)}</div>
-                        ${formatMissingEpisodes(task) ? `<div class='ellipsis' title="${formatMissingEpisodesTitle(task)}">${formatMissingEpisodes(task)}</div>` : ''}
-                    </td>
-                    <td data-label="转存时间" style="font-size: 13px; color: #3b82f6; font-weight: 500;">${formatDateTime(task.lastFileUpdateTime)}</td>
-                    <td data-label="备注">${task.remark?task.remark:''}</td>
-                    <td data-label="状态"><span class="status-badge ${getStatusClass(task)}">${formatTaskStatus(task)}</span>${task.status === 'failed' && task.lastError ? `<span style="color: #ff4d4f; font-size: 11px; margin-left: 5px;">(${task.lastError.slice(0, 30)}${task.lastError.length > 30 ? '...' : ''})</span>` : ''}</td>
-                </tr>
-            `;
-        });
-        tbody.innerHTML = rowsHtml;
-    }
 }
 
  // 删除任务
